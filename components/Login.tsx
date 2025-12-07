@@ -17,8 +17,7 @@ const Login: React.FC = () => {
 
             <div className="flex justify-center">
               <SignIn 
-                afterSignInUrl="/dashboard" 
-                afterSignUpUrl="/dashboard"
+                fallbackRedirectUrl="/dashboard"
                 appearance={{
                   elements: {
                     rootBox: "mx-auto",
