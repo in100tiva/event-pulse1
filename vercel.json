@@ -18,9 +18,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "VITE_CONVEX_URL": "@vite_convex_url",
-    "VITE_CLERK_PUBLISHABLE_KEY": "@vite_clerk_publishable_key"
-  }
+  ]
 }
