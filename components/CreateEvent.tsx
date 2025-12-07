@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
-import { useOrganization } from '@clerk/clerk-react';
+import { useOrganization, useUser } from '@clerk/clerk-react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
 
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const { organization } = useOrganization();
   const createEvent = useMutation(api.events.create);
+  const syncUser = useMutation(api.users.syncUser);
+  const syncOrganization = useMutation(api.users.syncOrganization);
   const userOrganizations = useQuery(api.users.getUserOrganizations);
 
   const [title, setTitle] = useState('');
@@ -20,6 +23,7 @@ const CreateEvent: React.FC = () => {
   const [anonymousSuggestions, setAnonymousSuggestions] = useState(true);
   const [moderation, setModeration] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Buscar organização do Convex pelo clerkId se estivermos em uma organização do Clerk
   const currentClerkOrg = useQuery(
@@ -30,14 +34,94 @@ const CreateEvent: React.FC = () => {
   // Usar a organização do Clerk (convertida para Convex ID) ou a primeira organização do usuário
   const currentOrgId = currentClerkOrg?._id || userOrganizations?.[0]?._id;
 
+  // Sincronizar usuário ao montar o componente (igual ao Dashboard)
+  React.useEffect(() => {
+    if (user) {
+      syncUser({
+        clerkId: user.id,
+        email: user.primaryEmailAddress?.emailAddress || '',
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        avatarUrl: user.imageUrl || undefined,
+      });
+    }
+  }, [user, syncUser]);
+
+  React.useEffect(() => {
+    if (organization) {
+      syncOrganization({
+        clerkId: organization.id,
+        name: organization.name,
+      });
+    }
+  }, [organization, syncOrganization]);
+
+  // Debug: Log para ver o estado das organizações
+  React.useEffect(() => {
+    console.log('=== DEBUG ORGANIZAÇÕES ===');
+    console.log('User:', user);
+    console.log('User ID (Clerk):', user?.id);
+    console.log('User Email:', user?.primaryEmailAddress?.emailAddress);
+    console.log('Clerk Organization:', organization);
+    console.log('User Organizations (Convex):', userOrganizations);
+    console.log('Current Clerk Org:', currentClerkOrg);
+    console.log('Current Org ID:', currentOrgId);
+    console.log('========================');
+  }, [user, organization, userOrganizations, currentClerkOrg, currentOrgId]);
+
+  // Função para forçar sincronização
+  const handleForceSync = async () => {
+    if (!user) {
+      alert('Usuário não encontrado');
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      // Sincronizar usuário
+      await syncUser({
+        clerkId: user.id,
+        email: user.primaryEmailAddress?.emailAddress || '',
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        avatarUrl: user.imageUrl || undefined,
+      });
+
+      // Sincronizar organização se houver
+      if (organization) {
+        await syncOrganization({
+          clerkId: organization.id,
+          name: organization.name,
+        });
+      }
+
+      alert('Sincronização concluída! Recarregue a página se necessário.');
+      // Aguardar um pouco para as queries atualizarem
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Erro ao sincronizar:', error);
+      alert('Erro ao sincronizar. Verifique o console.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleSubmit = async (status: 'rascunho' | 'publicado') => {
     if (!title || !dateTime) {
       alert('Por favor, preencha o título e a data/hora do evento.');
       return;
     }
 
+    // Aguardar o carregamento das organizações
+    if (userOrganizations === undefined) {
+      alert('Aguarde, carregando suas organizações...');
+      return;
+    }
+
     if (!currentOrgId) {
-      alert('Você precisa estar em uma organização para criar eventos.');
+      alert('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
       return;
     }
 
@@ -93,6 +177,35 @@ const CreateEvent: React.FC = () => {
             <div className="flex flex-wrap justify-between gap-3 p-4">
               <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">Criar Novo Evento</h1>
             </div>
+
+            {/* Debug Info */}
+            {!currentOrgId && (
+              <div className="mx-4 mb-4 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg">
+                <p className="text-yellow-300 font-semibold mb-2">⚠️ Debug - Organizações não encontradas</p>
+                <div className="text-sm text-yellow-200/80 space-y-1">
+                  <p>• Usuário logado: {user?.primaryEmailAddress?.emailAddress || 'Desconhecido'}</p>
+                  <p>• Clerk User ID: {user?.id || 'N/A'}</p>
+                  <p>• Organização Clerk: {organization ? organization.name : 'Nenhuma'}</p>
+                  <p>• Total de organizações do usuário: {userOrganizations?.length || 0}</p>
+                  <p>• Status da query: {userOrganizations === undefined ? 'Carregando...' : 'Carregado'}</p>
+                  {userOrganizations && userOrganizations.length > 0 && (
+                    <p>• Organizações: {userOrganizations.map(o => o.name).join(', ')}</p>
+                  )}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={handleForceSync}
+                    disabled={isSyncing}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSyncing ? 'Sincronizando...' : '🔄 Forçar Sincronização'}
+                  </button>
+                </div>
+                <p className="text-yellow-300 text-xs mt-3">
+                  💡 Verifique o console do navegador para mais detalhes. Se o problema persistir, clique em "Forçar Sincronização".
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-8 mt-6">
               <div className="flex flex-col gap-4 bg-surface-dark p-6 rounded-xl border border-border-dark">

@@ -195,3 +195,47 @@ export const getOrganizationByClerkId = query({
       .first();
   },
 });
+
+// Adicionar usuário a uma organização existente (útil para admin)
+export const addUserToOrganization = mutation({
+  args: {
+    userEmail: v.string(),
+    organizationId: v.id("organizations"),
+    role: v.union(v.literal("admin"), v.literal("member")),
+  },
+  handler: async (ctx, args) => {
+    // Buscar o usuário pelo email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
+      .first();
+
+    if (!user) {
+      throw new Error(`Usuário com email ${args.userEmail} não encontrado`);
+    }
+
+    // Verificar se o usuário já está na organização
+    const existingMembership = await ctx.db
+      .query("organizationUsers")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .filter((q) => q.eq(q.field("userId"), user._id))
+      .first();
+
+    if (existingMembership) {
+      // Atualizar role se já existe
+      await ctx.db.patch(existingMembership._id, {
+        role: args.role,
+      });
+      return { success: true, message: "Role atualizada com sucesso", updated: true };
+    }
+
+    // Criar nova associação
+    await ctx.db.insert("organizationUsers", {
+      organizationId: args.organizationId,
+      userId: user._id,
+      role: args.role,
+    });
+
+    return { success: true, message: "Usuário adicionado à organização", updated: false };
+  },
+});
