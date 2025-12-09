@@ -65,31 +65,48 @@ export const getByOrganization = query({
       return [];
     }
 
-    // Buscar todos os eventos da organização
-    const events = await ctx.db
-      .query("events")
-      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
-      .collect();
+    try {
+      // Buscar todos os eventos da organização
+      const events = await ctx.db
+        .query("events")
+        .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+        .collect();
 
-    // Para cada evento, buscar os leads
-    const leadsWithEvent = await Promise.all(
-      events.map(async (event) => {
-        const leads = await ctx.db
-          .query("waitlist")
-          .withIndex("by_event", (q) => q.eq("eventId", event._id))
-          .collect();
+      // Se não há eventos, retornar array vazio
+      if (!events || events.length === 0) {
+        return [];
+      }
 
-        return leads.map((lead) => ({
-          ...lead,
-          eventTitle: event.title,
-          eventStartDateTime: event.startDateTime,
-        }));
-      })
-    );
+      // Para cada evento, buscar os leads
+      const leadsWithEvent = await Promise.all(
+        events.map(async (event) => {
+          try {
+            const leads = await ctx.db
+              .query("waitlist")
+              .withIndex("by_event", (q) => q.eq("eventId", event._id))
+              .collect();
 
-    // Flatten array e ordenar por data de criação (mais recentes primeiro)
-    const allLeads = leadsWithEvent.flat();
-    return allLeads.sort((a, b) => b.createdAt - a.createdAt);
+            return leads.map((lead) => ({
+              ...lead,
+              eventTitle: event.title,
+              eventStartDateTime: event.startDateTime,
+            }));
+          } catch (error) {
+            // Se houver erro ao buscar leads de um evento específico, retornar array vazio
+            console.error(`Erro ao buscar leads do evento ${event._id}:`, error);
+            return [];
+          }
+        })
+      );
+
+      // Flatten array e ordenar por data de criação (mais recentes primeiro)
+      const allLeads = leadsWithEvent.flat();
+      return allLeads.sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error) {
+      // Se houver qualquer erro, retornar array vazio ao invés de falhar
+      console.error("Erro ao buscar leads da organização:", error);
+      return [];
+    }
   },
 });
 

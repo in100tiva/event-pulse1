@@ -281,7 +281,7 @@ const Dashboard: React.FC = () => {
               )}
 
               {/* Seção de Leads de Lista de Espera */}
-              {waitlistLeads && waitlistLeads.length > 0 && (
+              {waitlistLeads && Array.isArray(waitlistLeads) && waitlistLeads.length > 0 && (
                 <div className="mt-12">
                   <div className="flex items-center justify-between mb-6">
                     <div>
