@@ -11,6 +11,8 @@ const PublicEvent: React.FC = () => {
   const createSuggestion = useMutation(api.suggestions.create);
   const voteSuggestion = useMutation(api.suggestions.vote);
   const votePoll = useMutation(api.polls.vote);
+  // @ts-ignore - waitlist module will be available after Convex regenerates types
+  const addToWaitlist = useMutation((api as any).waitlist?.addToWaitlist);
   
   const suggestions = useQuery(
     api.suggestions.getApprovedByEvent,
@@ -30,6 +32,10 @@ const PublicEvent: React.FC = () => {
   const [suggestionText, setSuggestionText] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [participantId, setParticipantId] = useState('');
+  const [votedSuggestions, setVotedSuggestions] = useState<Set<string>>(new Set());
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistWhatsapp, setWaitlistWhatsapp] = useState('');
 
   useEffect(() => {
     // Gerar ID único para o participante (baseado em localStorage)
@@ -39,7 +45,20 @@ const PublicEvent: React.FC = () => {
       localStorage.setItem('eventpulse_participant_id', id);
     }
     setParticipantId(id);
-  }, []);
+
+    // Recuperar nome e email salvos
+    const savedName = localStorage.getItem('eventpulse_user_name');
+    const savedEmail = localStorage.getItem('eventpulse_user_email');
+    if (savedName) setName(savedName);
+    if (savedEmail) setEmail(savedEmail);
+
+    // Recuperar sugestões votadas para este evento
+    const votedKey = `eventpulse_voted_suggestions_${code}`;
+    const savedVotes = localStorage.getItem(votedKey);
+    if (savedVotes) {
+      setVotedSuggestions(new Set(JSON.parse(savedVotes)));
+    }
+  }, [code]);
 
   const handleRSVP = async (status: 'vou' | 'talvez' | 'nao_vou') => {
     if (!event || !name || !email) {
@@ -54,10 +73,23 @@ const PublicEvent: React.FC = () => {
         email,
         status,
       });
+      
+      // Salvar nome e email no localStorage para próximas vezes
+      localStorage.setItem('eventpulse_user_name', name);
+      localStorage.setItem('eventpulse_user_email', email);
+      
       alert('Confirmação registrada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao confirmar presença:', error);
-      alert('Erro ao confirmar presença. Tente novamente.');
+      
+      // Se o evento está lotado, mostrar modal de lista de espera
+      if (error?.message === 'EVENTO_LOTADO') {
+        setWaitlistName(name);
+        setWaitlistWhatsapp('');
+        setShowWaitlistModal(true);
+      } else {
+        alert('Erro ao confirmar presença. Tente novamente.');
+      }
     }
   };
 
@@ -85,13 +117,33 @@ const PublicEvent: React.FC = () => {
   const handleVoteSuggestion = async (suggestionId: Id<'suggestions'>) => {
     if (!participantId) return;
 
+    const suggestionIdStr = suggestionId.toString();
+    
+    // Verificar se já votou nesta sugestão
+    if (votedSuggestions.has(suggestionIdStr)) {
+      alert('Você já votou nesta sugestão!');
+      return;
+    }
+
     try {
-      await voteSuggestion({
+      const result = await voteSuggestion({
         suggestionId,
         participantIdentifier: participantId,
       });
+
+      // Se votou com sucesso, adicionar à lista de votadas
+      if (result.action === 'voted') {
+        const newVoted = new Set(votedSuggestions);
+        newVoted.add(suggestionIdStr);
+        setVotedSuggestions(newVoted);
+        
+        // Salvar no localStorage
+        const votedKey = `eventpulse_voted_suggestions_${code}`;
+        localStorage.setItem(votedKey, JSON.stringify(Array.from(newVoted)));
+      }
     } catch (error) {
       console.error('Erro ao votar:', error);
+      alert('Erro ao votar. Tente novamente.');
     }
   };
 
@@ -106,6 +158,36 @@ const PublicEvent: React.FC = () => {
       });
     } catch (error) {
       console.error('Erro ao votar:', error);
+    }
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!event || !waitlistName.trim() || !waitlistWhatsapp.trim()) {
+      alert('Por favor, preencha seu nome e WhatsApp.');
+      return;
+    }
+
+    // Validar formato básico do WhatsApp
+    const whatsappRegex = /^[\d\s\-\+\(\)]+$/;
+    if (!whatsappRegex.test(waitlistWhatsapp)) {
+      alert('Por favor, insira um número de WhatsApp válido.');
+      return;
+    }
+
+    try {
+      await addToWaitlist({
+        eventId: event._id,
+        name: waitlistName,
+        whatsapp: waitlistWhatsapp,
+      });
+
+      alert('Você foi adicionado à lista de espera! Entraremos em contato caso surjam novas vagas.');
+      setShowWaitlistModal(false);
+      setWaitlistName('');
+      setWaitlistWhatsapp('');
+    } catch (error: any) {
+      console.error('Erro ao entrar na lista de espera:', error);
+      alert(error?.message || 'Erro ao entrar na lista de espera. Tente novamente.');
     }
   };
 
@@ -294,37 +376,48 @@ const PublicEvent: React.FC = () => {
 
                   <div className="flex flex-col gap-4 pt-6">
                     {suggestions && suggestions.length > 0 ? (
-                      suggestions.map((suggestion) => (
-                        <div 
-                          key={suggestion._id} 
-                          className={`relative flex flex-col md:flex-row items-start gap-4 p-4 border border-border-dark rounded-lg bg-background-dark/50 ${suggestion.isAnswered ? 'border-success' : ''}`}
-                        >
-                          <div className="flex-grow">
-                            <p className="text-base leading-relaxed text-white">{suggestion.content}</p>
-                            <p className="text-sm text-gray-500 mt-2">
-                              por {suggestion.isAnonymous ? 'Anônimo' : suggestion.authorName || 'Participante'}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 text-base font-bold text-success">
-                              <span className="material-symbols-outlined text-xl">thumb_up</span>
-                              <span>{suggestion.votesCount}</span>
+                      suggestions.map((suggestion) => {
+                        const hasVoted = votedSuggestions.has(suggestion._id.toString());
+                        return (
+                          <div 
+                            key={suggestion._id} 
+                            className={`relative flex flex-col md:flex-row items-start gap-4 p-4 border border-border-dark rounded-lg bg-background-dark/50 ${suggestion.isAnswered ? 'border-success' : ''}`}
+                          >
+                            <div className="flex-grow">
+                              <p className="text-base leading-relaxed text-white">{suggestion.content}</p>
+                              <p className="text-sm text-gray-500 mt-2">
+                                por {suggestion.isAnonymous ? 'Anônimo' : suggestion.authorName || 'Participante'}
+                              </p>
                             </div>
-                            <button 
-                              onClick={() => handleVoteSuggestion(suggestion._id)}
-                              className="flex items-center justify-center h-10 w-10 cursor-pointer rounded-full bg-success/10 text-success hover:bg-success/20 transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-xl">thumb_up</span>
-                            </button>
-                          </div>
-                          {suggestion.isAnswered && (
-                            <div className="absolute top-0 right-0 -mt-3 -mr-3 flex items-center gap-1 bg-success text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                              <span className="material-symbols-outlined text-sm">check_circle</span>
-                              <span>Respondida</span>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2 text-base font-bold text-success">
+                                <span className="material-symbols-outlined text-xl">thumb_up</span>
+                                <span>{suggestion.votesCount}</span>
+                              </div>
+                              <button 
+                                onClick={() => handleVoteSuggestion(suggestion._id)}
+                                disabled={hasVoted}
+                                className={`flex items-center justify-center h-10 w-10 rounded-full transition-colors ${
+                                  hasVoted 
+                                    ? 'bg-success text-white cursor-not-allowed' 
+                                    : 'bg-success/10 text-success hover:bg-success/20 cursor-pointer'
+                                }`}
+                                title={hasVoted ? 'Você já votou nesta sugestão' : 'Votar nesta sugestão'}
+                              >
+                                <span className="material-symbols-outlined text-xl">
+                                  {hasVoted ? 'check' : 'thumb_up'}
+                                </span>
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))
+                            {suggestion.isAnswered && (
+                              <div className="absolute top-0 right-0 -mt-3 -mr-3 flex items-center gap-1 bg-success text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                                <span className="material-symbols-outlined text-sm">check_circle</span>
+                                <span>Respondida</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="text-center text-gray-400 py-8">
                         Seja o primeiro a fazer uma sugestão!
@@ -382,6 +475,75 @@ const PublicEvent: React.FC = () => {
           </p>
         </footer>
       </div>
+
+      {/* Modal de Lista de Espera */}
+      {showWaitlistModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-dark border border-border-dark rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="material-symbols-outlined text-yellow-500 text-4xl">info</span>
+              <h2 className="text-2xl font-bold text-white">Evento Lotado</h2>
+            </div>
+            
+            <p className="text-gray-300 mb-6">
+              Infelizmente o evento atingiu o limite de participantes. Mas você pode entrar na lista de espera 
+              e ser avisado caso surjam novas vagas!
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">
+                  Nome Completo *
+                </label>
+                <input 
+                  value={waitlistName}
+                  onChange={(e) => setWaitlistName(e.target.value)}
+                  placeholder="Digite seu nome completo"
+                  className="w-full rounded-lg border border-border-dark bg-background-dark h-12 px-4 text-white placeholder:text-gray-500 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">
+                  WhatsApp (com DDD) *
+                </label>
+                <input 
+                  value={waitlistWhatsapp}
+                  onChange={(e) => setWaitlistWhatsapp(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                  type="tel"
+                  className="w-full rounded-lg border border-border-dark bg-background-dark h-12 px-4 text-white placeholder:text-gray-500 focus:outline-0 focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+
+              <p className="text-xs text-gray-400">
+                * Entraremos em contato via WhatsApp caso surjam vagas
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowWaitlistModal(false);
+                  setWaitlistName('');
+                  setWaitlistWhatsapp('');
+                }}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleJoinWaitlist}
+                disabled={!waitlistName.trim() || !waitlistWhatsapp.trim()}
+                className="px-6 py-3 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Entrar na Lista de Espera
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

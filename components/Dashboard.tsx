@@ -67,6 +67,13 @@ const Dashboard: React.FC = () => {
     currentOrgId ? { organizationId: currentOrgId } : "skip"
   );
 
+  // Buscar leads de lista de espera da organização
+  const waitlistLeads = useQuery(
+    // @ts-ignore - waitlist module will be available after Convex regenerates types
+    (api as any).waitlist?.getByOrganization,
+    currentOrgId ? { organizationId: currentOrgId } : "skip"
+  );
+
   // Sincronizar dados do Clerk ao montar
   useEffect(() => {
     if (user) {
@@ -270,6 +277,136 @@ const Dashboard: React.FC = () => {
                   <p className="text-gray-400 max-w-sm">
                     Seu painel está pronto. Clique em 'Criar Novo Evento' para começar.
                   </p>
+                </div>
+              )}
+
+              {/* Seção de Leads de Lista de Espera */}
+              {waitlistLeads && waitlistLeads.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold leading-tight tracking-[-0.015em] text-white">
+                        Leads de Lista de Espera
+                      </h2>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Pessoas interessadas que não conseguiram vaga nos eventos
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-yellow-900/20 border border-yellow-600/50 rounded-lg">
+                      <span className="material-symbols-outlined text-yellow-300">groups</span>
+                      <span className="text-yellow-300 font-bold">{waitlistLeads.length} leads</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border-dark bg-surface-dark overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-background-dark/50 border-b border-border-dark">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              Nome
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              WhatsApp
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              Evento
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              Data de Cadastro
+                            </th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                              Ações
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-dark">
+                          {waitlistLeads.map((lead) => (
+                            <tr key={lead._id} className="hover:bg-background-dark/30 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-primary">person</span>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-white">{lead.name}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-300">{lead.whatsapp}</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(lead.whatsapp);
+                                      alert('WhatsApp copiado!');
+                                    }}
+                                    className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                    title="Copiar WhatsApp"
+                                  >
+                                    <span className="material-symbols-outlined text-sm text-gray-400">content_copy</span>
+                                  </button>
+                                  <a
+                                    href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 hover:bg-green-700 rounded transition-colors"
+                                    title="Abrir no WhatsApp"
+                                  >
+                                    <span className="material-symbols-outlined text-sm text-green-400">chat</span>
+                                  </a>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-white">{lead.eventTitle}</div>
+                                <div className="text-xs text-gray-400">
+                                  {new Date(lead.eventStartDateTime).toLocaleDateString('pt-BR')}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-300">
+                                  {new Date(lead.createdAt).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {new Date(lead.createdAt).toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <button
+                                  disabled
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-700/50 text-gray-400 text-xs font-medium rounded cursor-not-allowed opacity-50"
+                                  title="Notificação automática em breve"
+                                >
+                                  <span className="material-symbols-outlined text-sm">notifications</span>
+                                  Notificar
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-blue-300 text-xl">info</span>
+                      <div className="flex-1">
+                        <p className="text-sm text-blue-200 font-medium">Sobre os Leads</p>
+                        <p className="text-xs text-blue-300/80 mt-1">
+                          Esses são contatos de pessoas que tentaram confirmar presença mas o evento já estava lotado. 
+                          Use os dados para notificá-los sobre próximos eventos ou caso surjam novas vagas.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </main>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { useOrganization, useUser } from '@clerk/clerk-react';
 import { api } from '../convex/_generated/api';
@@ -7,13 +7,21 @@ import { Id } from '../convex/_generated/dataModel';
 
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
+  const { eventId } = useParams<{ eventId: string }>();
   const { user } = useUser();
   const { organization } = useOrganization();
   const createEvent = useMutation(api.events.create);
+  const updateEvent = useMutation(api.events.update);
   const syncUser = useMutation(api.users.syncUser);
   const syncOrganization = useMutation(api.users.syncOrganization);
   const createOrganization = useMutation(api.users.createOrganization);
   const userOrganizations = useQuery(api.users.getUserOrganizations);
+  
+  // Buscar evento se estiver em modo de edição
+  const existingEvent = useQuery(
+    api.events.getById,
+    eventId ? { id: eventId as Id<"events"> } : "skip"
+  );
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -36,6 +44,25 @@ const CreateEvent: React.FC = () => {
   
   // Usar a organização do Clerk (convertida para Convex ID) ou a primeira organização do usuário
   const currentOrgId = currentClerkOrg?._id || userOrganizations?.[0]?._id;
+
+  // Carregar dados do evento existente se estiver em modo de edição
+  useEffect(() => {
+    if (existingEvent) {
+      setTitle(existingEvent.title);
+      setDescription(existingEvent.description || '');
+      
+      // Converter timestamp para formato datetime-local
+      const date = new Date(existingEvent.startDateTime);
+      const dateTimeStr = date.toISOString().slice(0, 16);
+      setDateTime(dateTimeStr);
+      
+      setIsOnline(existingEvent.isOnline);
+      setLocation(existingEvent.location || '');
+      setParticipantLimit(existingEvent.participantLimit?.toString() || '');
+      setAnonymousSuggestions(existingEvent.allowAnonymousSuggestions);
+      setModeration(existingEvent.moderateSuggestions);
+    }
+  }, [existingEvent]);
 
   // Sincronizar usuário ao montar o componente (igual ao Dashboard)
   React.useEffect(() => {
@@ -153,15 +180,20 @@ const CreateEvent: React.FC = () => {
       return;
     }
 
-    // Aguardar o carregamento das organizações
-    if (userOrganizations === undefined) {
-      alert('Aguarde, carregando suas organizações...');
-      return;
-    }
+    // Se estiver editando, não precisa verificar organização
+    const isEditing = !!eventId && !!existingEvent;
 
-    if (!currentOrgId) {
-      alert('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
-      return;
+    if (!isEditing) {
+      // Aguardar o carregamento das organizações
+      if (userOrganizations === undefined) {
+        alert('Aguarde, carregando suas organizações...');
+        return;
+      }
+
+      if (!currentOrgId) {
+        alert('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -169,24 +201,44 @@ const CreateEvent: React.FC = () => {
     try {
       const timestamp = new Date(dateTime).getTime();
       
-      const eventId = await createEvent({
-        organizationId: currentOrgId!,
-        title,
-        description: description || undefined,
-        startDateTime: timestamp,
-        isOnline,
-        location: location || undefined,
-        participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
-        allowAnonymousSuggestions: anonymousSuggestions,
-        moderateSuggestions: moderation,
-        status,
-      });
+      if (isEditing) {
+        // Atualizar evento existente
+        await updateEvent({
+          id: eventId as Id<"events">,
+          title,
+          description: description || undefined,
+          startDateTime: timestamp,
+          isOnline,
+          location: location || undefined,
+          participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
+          allowAnonymousSuggestions: anonymousSuggestions,
+          moderateSuggestions: moderation,
+          status,
+        });
+        
+        alert('Evento atualizado com sucesso!');
+        navigate(`/manage/${existingEvent.shareLinkCode}`);
+      } else {
+        // Criar novo evento
+        await createEvent({
+          organizationId: currentOrgId!,
+          title,
+          description: description || undefined,
+          startDateTime: timestamp,
+          isOnline,
+          location: location || undefined,
+          participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
+          allowAnonymousSuggestions: anonymousSuggestions,
+          moderateSuggestions: moderation,
+          status,
+        });
 
-      // Buscar o evento criado para pegar o shareCode
-      navigate('/dashboard');
+        alert('Evento criado com sucesso!');
+        navigate('/dashboard');
+      }
     } catch (error) {
-      console.error('Erro ao criar evento:', error);
-      alert('Erro ao criar evento. Tente novamente.');
+      console.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento:`, error);
+      alert(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento. Tente novamente.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -214,7 +266,9 @@ const CreateEvent: React.FC = () => {
         <main className="flex flex-1 justify-center px-4 md:px-10 lg:px-20 py-5">
           <div className="layout-content-container flex flex-col max-w-4xl flex-1">
             <div className="flex flex-wrap justify-between gap-3 p-4">
-              <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">Criar Novo Evento</h1>
+              <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">
+                {eventId && existingEvent ? 'Editar Evento' : 'Criar Novo Evento'}
+              </h1>
             </div>
 
             {/* Debug Info */}

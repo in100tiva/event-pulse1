@@ -46,6 +46,14 @@ const App: React.FC = () => {
           }
         />
         <Route
+          path="/edit-event/:eventId"
+          element={
+            <Authenticated>
+              <CreateEvent />
+            </Authenticated>
+          }
+        />
+        <Route
           path="/manage/:shareCode"
           element={
             <Authenticated>

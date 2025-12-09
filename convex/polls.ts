@@ -168,25 +168,12 @@ export const vote = mutation({
       )
       .collect();
 
-    // Se não permite múltipla escolha e já votou
-    if (!poll.allowMultipleChoice && existingVotes.length > 0) {
-      // Remover voto anterior
-      for (const vote of existingVotes) {
-        await ctx.db.delete(vote._id);
-        const oldOption = await ctx.db.get(vote.pollOptionId);
-        if (oldOption) {
-          await ctx.db.patch(vote.pollOptionId, {
-            votesCount: Math.max(0, oldOption.votesCount - 1),
-          });
-        }
-      }
-    }
-
-    // Verificar se já votou nesta opção específica
+    // Verificar se já votou nesta opção específica PRIMEIRO
     const existingVoteForOption = existingVotes.find(
       (v) => v.pollOptionId === args.pollOptionId
     );
 
+    // Se clicou na mesma opção que já tinha votado, remover o voto (toggle off)
     if (existingVoteForOption) {
       // Se já votou nesta opção, remover voto (desvotou)
       await ctx.db.delete(existingVoteForOption._id);
@@ -197,6 +184,22 @@ export const vote = mutation({
         totalVotes: Math.max(0, poll.totalVotes - 1),
       });
       return { action: "unvoted" };
+    }
+
+    // Se não permite múltipla escolha e já votou em OUTRA opção, remover votos anteriores
+    if (!poll.allowMultipleChoice && existingVotes.length > 0) {
+      // Remover todos os votos anteriores (são de outras opções já que verificamos acima)
+      for (const vote of existingVotes) {
+        await ctx.db.delete(vote._id);
+        const oldOption = await ctx.db.get(vote.pollOptionId);
+        if (oldOption) {
+          await ctx.db.patch(vote.pollOptionId, {
+            votesCount: Math.max(0, oldOption.votesCount - 1),
+          });
+        }
+        // IMPORTANTE: Quando remove um voto antigo, NÃO decrementa totalVotes
+        // porque vamos adicionar um novo voto logo em seguida (substituição)
+      }
     }
 
     // Adicionar novo voto

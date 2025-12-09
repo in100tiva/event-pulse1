@@ -108,9 +108,6 @@ const ProjectionView: React.FC = () => {
     );
   }
 
-  // URL do evento para QR Code
-  const eventUrl = `${window.location.origin}/event/${event.shareLinkCode}`;
-
   return (
     <div className="bg-background-dark font-display text-text-primary-dark min-h-screen">
       <div className="relative flex min-h-screen w-full flex-col items-center p-4 sm:p-6 md:p-8">
@@ -263,20 +260,6 @@ const ProjectionView: React.FC = () => {
           )}
         </main>
 
-        {/* QR Code Footer */}
-        <footer className="absolute bottom-8 right-8 animate-fade-in-up">
-          <div className="flex flex-col items-center gap-4 rounded-xl bg-white p-4 shadow-2xl transform hover:scale-105 transition-transform duration-300">
-            <img 
-              className="h-40 w-40 rounded-lg mix-blend-multiply" 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(eventUrl)}`}
-              alt="QR Code para acessar o evento" 
-            />
-            <div className="text-center">
-              <p className="text-xl font-black text-black uppercase tracking-wider">Participe!</p>
-              <p className="text-xs text-gray-600 mt-1">Escaneie para votar</p>
-            </div>
-          </div>
-        </footer>
 
         {/* Modal para Criar Enquete */}
         {showCreatePoll && (

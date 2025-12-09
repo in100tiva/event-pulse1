@@ -10,6 +10,12 @@ export const confirmAttendance = mutation({
     status: v.union(v.literal("vou"), v.literal("talvez"), v.literal("nao_vou")),
   },
   handler: async (ctx, args) => {
+    // Buscar o evento
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Evento não encontrado");
+    }
+
     // Verificar se já existe confirmação para este email neste evento
     const existing = await ctx.db
       .query("attendanceConfirmations")
@@ -19,12 +25,27 @@ export const confirmAttendance = mutation({
       .first();
 
     if (existing) {
-      // Atualizar status existente
+      // Atualizar status existente (permitido mesmo se evento lotado)
       await ctx.db.patch(existing._id, {
         name: args.name,
         status: args.status,
       });
       return existing._id;
+    }
+
+    // Para novas confirmações com status "vou", verificar limite
+    if (args.status === "vou" && event.participantLimit) {
+      // Contar confirmações com status "vou"
+      const confirmations = await ctx.db
+        .query("attendanceConfirmations")
+        .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+        .collect();
+
+      const confirmedCount = confirmations.filter((c) => c.status === "vou").length;
+
+      if (confirmedCount >= event.participantLimit) {
+        throw new Error("EVENTO_LOTADO");
+      }
     }
 
     // Criar nova confirmação

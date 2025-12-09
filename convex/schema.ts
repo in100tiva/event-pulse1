@@ -101,4 +101,13 @@ export default defineSchema({
     pollOptionId: v.id("pollOptions"),
     participantIdentifier: v.string(),
   }).index("by_poll_participant", ["pollId", "participantIdentifier"]),
+
+  waitlist: defineTable({
+    eventId: v.id("events"),
+    name: v.string(),
+    whatsapp: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_event", ["eventId"])
+    .index("by_event_created", ["eventId", "createdAt"]),
 });
