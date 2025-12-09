@@ -61,12 +61,19 @@ const PublicEvent: React.FC = () => {
   }, [code]);
 
   const handleRSVP = async (status: 'vou' | 'talvez' | 'nao_vou') => {
+    console.log('[PublicEvent] handleRSVP chamado');
+    console.log('[PublicEvent] Status:', status);
+    console.log('[PublicEvent] Nome:', name);
+    console.log('[PublicEvent] Email:', email);
+    console.log('[PublicEvent] Limite do evento:', event?.participantLimit);
+    
     if (!event || !name || !email) {
       alert('Por favor, preencha seu nome e email.');
       return;
     }
 
     try {
+      console.log('[PublicEvent] Enviando confirmação para o Convex...');
       await confirmAttendance({
         eventId: event._id,
         name,
@@ -74,21 +81,34 @@ const PublicEvent: React.FC = () => {
         status,
       });
       
+      console.log('[PublicEvent] Confirmação aceita com sucesso!');
+      
       // Salvar nome e email no localStorage para próximas vezes
       localStorage.setItem('eventpulse_user_name', name);
       localStorage.setItem('eventpulse_user_email', email);
       
       alert('Confirmação registrada com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao confirmar presença:', error);
+      console.error('[PublicEvent] ERRO ao confirmar presença:', error);
+      console.error('[PublicEvent] Tipo do erro:', typeof error);
+      console.error('[PublicEvent] Mensagem do erro:', error?.message);
+      console.error('[PublicEvent] Stack:', error?.stack);
       
       // Se o evento está lotado, mostrar modal de lista de espera
-      if (error?.message === 'EVENTO_LOTADO') {
+      const isEventoLotado = error?.message?.includes('EVENTO_LOTADO') || 
+                            error?.toString()?.includes('EVENTO_LOTADO') ||
+                            (error?.message === 'EVENTO_LOTADO');
+      
+      console.log('[PublicEvent] É evento lotado?', isEventoLotado);
+      
+      if (isEventoLotado) {
+        console.log('[PublicEvent] Mostrando modal de lista de espera');
         setWaitlistName(name);
         setWaitlistWhatsapp('');
         setShowWaitlistModal(true);
       } else {
-        alert('Erro ao confirmar presença. Tente novamente.');
+        console.log('[PublicEvent] Mostrando alerta de erro genérico');
+        alert(`Erro ao confirmar presença: ${error?.message || 'Tente novamente.'}`);
       }
     }
   };

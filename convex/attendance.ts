@@ -10,11 +10,19 @@ export const confirmAttendance = mutation({
     status: v.union(v.literal("vou"), v.literal("talvez"), v.literal("nao_vou")),
   },
   handler: async (ctx, args) => {
+    console.log("[confirmAttendance] Iniciando confirmação de presença");
+    console.log("[confirmAttendance] Email:", args.email);
+    console.log("[confirmAttendance] Status:", args.status);
+    
     // Buscar o evento
     const event = await ctx.db.get(args.eventId);
     if (!event) {
+      console.error("[confirmAttendance] Evento não encontrado:", args.eventId);
       throw new Error("Evento não encontrado");
     }
+
+    console.log("[confirmAttendance] Evento:", event.title);
+    console.log("[confirmAttendance] Limite de participantes:", event.participantLimit);
 
     // Verificar se já existe confirmação para este email neste evento
     const existing = await ctx.db
@@ -25,16 +33,41 @@ export const confirmAttendance = mutation({
       .first();
 
     if (existing) {
-      // Atualizar status existente (permitido mesmo se evento lotado)
+      console.log("[confirmAttendance] Confirmação já existe, atualizando status");
+      console.log("[confirmAttendance] Status anterior:", existing.status, "→ Status novo:", args.status);
+      
+      // Se estava com outro status e agora quer confirmar "vou", verificar limite
+      if (existing.status !== "vou" && args.status === "vou" && event.participantLimit) {
+        // Contar confirmações atuais com status "vou"
+        const confirmations = await ctx.db
+          .query("attendanceConfirmations")
+          .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+          .collect();
+
+        const confirmedCount = confirmations.filter((c) => c.status === "vou").length;
+        
+        console.log("[confirmAttendance] Confirmados atuais:", confirmedCount);
+        console.log("[confirmAttendance] Limite:", event.participantLimit);
+
+        if (confirmedCount >= event.participantLimit) {
+          console.log("[confirmAttendance] EVENTO LOTADO! Bloqueando confirmação");
+          throw new Error("EVENTO_LOTADO");
+        }
+      }
+      
+      // Atualizar status existente
       await ctx.db.patch(existing._id, {
         name: args.name,
         status: args.status,
       });
+      console.log("[confirmAttendance] Status atualizado com sucesso");
       return existing._id;
     }
 
     // Para novas confirmações com status "vou", verificar limite
     if (args.status === "vou" && event.participantLimit) {
+      console.log("[confirmAttendance] Nova confirmação, verificando limite...");
+      
       // Contar confirmações com status "vou"
       const confirmations = await ctx.db
         .query("attendanceConfirmations")
@@ -42,20 +75,28 @@ export const confirmAttendance = mutation({
         .collect();
 
       const confirmedCount = confirmations.filter((c) => c.status === "vou").length;
+      
+      console.log("[confirmAttendance] Confirmados atuais:", confirmedCount);
+      console.log("[confirmAttendance] Limite:", event.participantLimit);
+      console.log("[confirmAttendance] Pode confirmar?", confirmedCount < event.participantLimit);
 
       if (confirmedCount >= event.participantLimit) {
+        console.log("[confirmAttendance] EVENTO LOTADO! Bloqueando nova confirmação");
         throw new Error("EVENTO_LOTADO");
       }
     }
 
     // Criar nova confirmação
-    return await ctx.db.insert("attendanceConfirmations", {
+    console.log("[confirmAttendance] Criando nova confirmação...");
+    const newId = await ctx.db.insert("attendanceConfirmations", {
       eventId: args.eventId,
       name: args.name,
       email: args.email,
       status: args.status,
       checkedIn: false,
     });
+    console.log("[confirmAttendance] Confirmação criada com sucesso:", newId);
+    return newId;
   },
 });
 
