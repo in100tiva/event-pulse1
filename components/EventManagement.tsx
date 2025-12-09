@@ -1,8 +1,158 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
+
+type TabType = 'confirmations' | 'suggestions' | 'polls';
 
 const EventManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { shareCode } = useParams<{ shareCode: string }>();
+  const [activeTab, setActiveTab] = useState<TabType>('confirmations');
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Buscar dados reais do Convex
+  const event = useQuery(
+    api.events.getByShareCode,
+    shareCode ? { shareLinkCode: shareCode } : 'skip'
+  );
+  
+  const attendanceList = useQuery(
+    api.attendance.getByEvent,
+    event ? { eventId: event._id } : 'skip'
+  );
+  
+  const stats = useQuery(
+    api.attendance.getStats,
+    event ? { eventId: event._id } : 'skip'
+  );
+
+  const suggestions = useQuery(
+    api.suggestions.getByEvent,
+    event ? { eventId: event._id } : 'skip'
+  );
+
+  const polls = useQuery(
+    api.polls.getByEvent,
+    event ? { eventId: event._id } : 'skip'
+  );
+
+  // Mutations
+  const checkInMutation = useMutation(api.attendance.checkIn);
+  const updateStatusMutation = useMutation(api.events.updateStatus);
+  const updateSuggestionStatus = useMutation(api.suggestions.updateStatus);
+  const markSuggestionAnswered = useMutation(api.suggestions.markAsAnswered);
+  const togglePollActive = useMutation(api.polls.toggleActive);
+
+  // Copiar link do evento
+  const handleCopyLink = async () => {
+    if (!event) return;
+    
+    const eventUrl = `${window.location.origin}/event/${event.shareLinkCode}`;
+    
+    try {
+      await navigator.clipboard.writeText(eventUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Erro ao copiar link:', err);
+      alert('Erro ao copiar link. Tente novamente.');
+    }
+  };
+
+  // Check-in de participante
+  const handleCheckIn = async (confirmationId: Id<"attendanceConfirmations">, currentCheckedIn: boolean) => {
+    try {
+      await checkInMutation({
+        id: confirmationId,
+        checkedIn: !currentCheckedIn,
+      });
+    } catch (error) {
+      console.error('Erro ao fazer check-in:', error);
+      alert('Erro ao fazer check-in. Tente novamente.');
+    }
+  };
+
+  // Atualizar status do evento
+  const handleUpdateStatus = async (status: 'rascunho' | 'publicado' | 'ao_vivo' | 'encerrado') => {
+    if (!event) return;
+    
+    try {
+      await updateStatusMutation({
+        id: event._id,
+        status,
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status. Tente novamente.');
+    }
+  };
+
+  // Exportar CSV
+  const handleExportCSV = () => {
+    if (!attendanceList || attendanceList.length === 0) {
+      alert('Não há dados para exportar.');
+      return;
+    }
+
+    const headers = ['Nome', 'Email', 'Status', 'Check-in'];
+    const rows = attendanceList.map(a => [
+      a.name,
+      a.email,
+      a.status === 'vou' ? 'Confirmado' : a.status === 'talvez' ? 'Talvez' : 'Recusado',
+      a.checkedIn ? 'Sim' : 'Não'
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `participantes_${event?.title || 'evento'}.csv`;
+    link.click();
+  };
+
+  // Loading state
+  if (!event) {
+    return (
+      <div className="bg-background-dark min-h-screen flex items-center justify-center">
+        <div className="text-white text-lg">Carregando evento...</div>
+      </div>
+    );
+  }
+
+  // Helper para mapear status
+  const getStatusLabel = (status: string) => {
+    const labels = {
+      rascunho: 'Rascunho',
+      publicado: 'Publicado',
+      ao_vivo: 'Ao Vivo',
+      encerrado: 'Encerrado',
+    };
+    return labels[status as keyof typeof labels] || status;
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      rascunho: 'bg-gray-700/50 text-gray-300',
+      publicado: 'bg-green-900/50 text-green-300',
+      ao_vivo: 'bg-blue-900/50 text-blue-300',
+      encerrado: 'bg-red-900/50 text-red-300',
+    };
+    return colors[status as keyof typeof colors] || 'bg-gray-700/50 text-gray-300';
+  };
+
+  const getAttendanceStatusLabel = (status: string) => {
+    return status === 'vou' ? 'Confirmado' : status === 'talvez' ? 'Talvez' : 'Recusado';
+  };
+
+  const getAttendanceStatusColor = (status: string) => {
+    return status === 'vou' 
+      ? 'bg-green-900/40 text-green-300 ring-green-600/30'
+      : status === 'talvez'
+      ? 'bg-blue-900/40 text-blue-300 ring-blue-600/30'
+      : 'bg-red-900/40 text-red-300 ring-red-600/30';
+  };
 
   return (
     <div className="bg-background-dark font-display text-text-primary-dark min-h-screen">
@@ -13,26 +163,28 @@ const EventManagement: React.FC = () => {
               {/* Header */}
               <div className="flex flex-wrap justify-between items-center gap-4 p-4">
                 <div className="flex flex-col gap-2">
-                  <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">Gerenciamento do Evento</p>
+                  <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">{event.title}</p>
                   <div className="flex items-center gap-2">
                     <span className="text-text-secondary-dark text-base font-normal leading-normal">Status:</span>
-                    <span className="inline-flex items-center rounded-full bg-yellow-900/50 px-2.5 py-0.5 text-xs font-medium text-yellow-300">Rascunho</span>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(event.status)}`}>
+                      {getStatusLabel(event.status)}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => navigate('/create-event')}
+                    onClick={() => navigate(`/edit-event/${event._id}`)}
                     className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-background-dark border border-border-dark text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-gray-800 transition-colors"
                   >
                     <span className="material-symbols-outlined text-base">edit</span>
                     <span className="truncate">Editar Evento</span>
                   </button>
                   <button 
-                    onClick={() => navigate('/event/123')}
+                    onClick={handleCopyLink}
                     className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-base">link</span>
-                    <span className="truncate">Copiar Link</span>
+                    <span className="material-symbols-outlined text-base">{copySuccess ? 'check' : 'link'}</span>
+                    <span className="truncate">{copySuccess ? 'Link Copiado!' : 'Copiar Link'}</span>
                   </button>
                 </div>
               </div>
@@ -40,86 +192,234 @@ const EventManagement: React.FC = () => {
               {/* Tabs */}
               <div className="pb-3 sticky top-0 bg-background-dark z-10">
                 <div className="flex border-b border-border-dark px-4 gap-8">
-                  <a className="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-primary pb-[13px] pt-4 cursor-pointer">
+                  <button 
+                    onClick={() => setActiveTab('confirmations')}
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                      activeTab === 'confirmations' 
+                        ? 'border-b-primary text-primary' 
+                        : 'border-b-transparent text-text-secondary-dark hover:text-white'
+                    }`}
+                  >
                     <p className="text-sm font-bold leading-normal tracking-[0.015em]">Confirmações</p>
-                  </a>
-                  <a className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-text-secondary-dark hover:text-white pb-[13px] pt-4 cursor-pointer transition-colors">
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Sugestões</p>
-                  </a>
-                  <a className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-text-secondary-dark hover:text-white pb-[13px] pt-4 cursor-pointer transition-colors">
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Enquetes</p>
-                  </a>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('suggestions')}
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                      activeTab === 'suggestions' 
+                        ? 'border-b-primary text-primary' 
+                        : 'border-b-transparent text-text-secondary-dark hover:text-white'
+                    }`}
+                  >
+                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Sugestões ({suggestions?.length || 0})</p>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('polls')}
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                      activeTab === 'polls' 
+                        ? 'border-b-primary text-primary' 
+                        : 'border-b-transparent text-text-secondary-dark hover:text-white'
+                    }`}
+                  >
+                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Enquetes ({polls?.length || 0})</p>
+                  </button>
                 </div>
               </div>
 
-              {/* Stats Cards */}
-              <div className="flex flex-wrap gap-4 p-4">
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                  <p className="text-white text-base font-medium leading-normal">Confirmados</p>
-                  <p className="text-white tracking-light text-3xl font-bold leading-tight">128</p>
-                </div>
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                  <p className="text-white text-base font-medium leading-normal">Talvez</p>
-                  <p className="text-white tracking-light text-3xl font-bold leading-tight">34</p>
-                </div>
-                <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                  <p className="text-white text-base font-medium leading-normal">Recusados</p>
-                  <p className="text-white tracking-light text-3xl font-bold leading-tight">12</p>
-                </div>
-              </div>
+              {/* Tab Content: Confirmações */}
+              {activeTab === 'confirmations' && (
+                <>
+                  {/* Stats Cards */}
+                  <div className="flex flex-wrap gap-4 p-4">
+                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
+                      <p className="text-white text-base font-medium leading-normal">Confirmados</p>
+                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.confirmed || 0}</p>
+                    </div>
+                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
+                      <p className="text-white text-base font-medium leading-normal">Talvez</p>
+                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.maybe || 0}</p>
+                    </div>
+                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
+                      <p className="text-white text-base font-medium leading-normal">Recusados</p>
+                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.declined || 0}</p>
+                    </div>
+                  </div>
 
-              {/* Actions */}
-              <div className="flex justify-end gap-2 px-4 py-3">
-                <button className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-surface-dark text-white text-sm font-bold leading-normal tracking-[0.015em] border border-border-dark hover:bg-gray-800 transition-colors">
-                  <span className="material-symbols-outlined text-lg">download</span>
-                  <span className="truncate">Exportar CSV</span>
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex justify-end gap-2 px-4 py-3">
+                    <button 
+                      onClick={handleExportCSV}
+                      className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-surface-dark text-white text-sm font-bold leading-normal tracking-[0.015em] border border-border-dark hover:bg-gray-800 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">download</span>
+                      <span className="truncate">Exportar CSV</span>
+                    </button>
+                  </div>
 
-              {/* Table */}
-              <div className="px-4 py-3 @container">
-                <div className="flex overflow-hidden rounded-xl border border-border-dark bg-surface-dark">
-                  <table className="flex-1">
-                    <thead className="border-b border-b-border-dark">
-                      <tr className="bg-surface-dark">
-                        <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Nome</th>
-                        <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Email</th>
-                        <th className="px-4 py-3 text-left text-text-secondary-dark w-40 text-sm font-medium leading-normal">Status</th>
-                        <th className="px-4 py-3 text-center text-text-secondary-dark w-28 text-sm font-medium leading-normal">Check-in</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-dark">
-                      {[
-                        { name: "Ana Oliveira", email: "ana.o@email.com", status: "Confirmado", color: "green", checked: true },
-                        { name: "Bruno Costa", email: "bruno.c@email.com", status: "Confirmado", color: "green", checked: false },
-                        { name: "Carla Dias", email: "carla.d@email.com", status: "Talvez", color: "blue", checked: false },
-                        { name: "Daniel Martins", email: "daniel.m@email.com", status: "Recusado", color: "red", checked: false },
-                      ].map((row, idx) => (
-                        <tr key={idx}>
-                          <td className="h-[72px] px-4 py-2 w-auto text-white text-sm font-normal leading-normal">{row.name}</td>
-                          <td className="h-[72px] px-4 py-2 w-auto text-text-secondary-dark text-sm font-normal leading-normal">{row.email}</td>
-                          <td className="h-[72px] px-4 py-2 w-40 text-sm font-normal leading-normal">
-                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                              row.color === 'green' ? 'bg-green-900/40 text-green-300 ring-green-600/30' :
-                              row.color === 'blue' ? 'bg-blue-900/40 text-blue-300 ring-blue-600/30' :
-                              'bg-red-900/40 text-red-300 ring-red-600/30'
+                  {/* Table */}
+                  <div className="px-4 py-3 @container">
+                    <div className="flex overflow-hidden rounded-xl border border-border-dark bg-surface-dark">
+                      <table className="flex-1">
+                        <thead className="border-b border-b-border-dark">
+                          <tr className="bg-surface-dark">
+                            <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Nome</th>
+                            <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Email</th>
+                            <th className="px-4 py-3 text-left text-text-secondary-dark w-40 text-sm font-medium leading-normal">Status</th>
+                            <th className="px-4 py-3 text-center text-text-secondary-dark w-28 text-sm font-medium leading-normal">Check-in</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-dark">
+                          {attendanceList && attendanceList.length > 0 ? (
+                            attendanceList.map((attendance) => (
+                              <tr key={attendance._id}>
+                                <td className="h-[72px] px-4 py-2 w-auto text-white text-sm font-normal leading-normal">{attendance.name}</td>
+                                <td className="h-[72px] px-4 py-2 w-auto text-text-secondary-dark text-sm font-normal leading-normal">{attendance.email}</td>
+                                <td className="h-[72px] px-4 py-2 w-40 text-sm font-normal leading-normal">
+                                  <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getAttendanceStatusColor(attendance.status)}`}>
+                                    {getAttendanceStatusLabel(attendance.status)}
+                                  </span>
+                                </td>
+                                <td className="h-[72px] px-4 py-2 w-28 text-center text-sm font-normal leading-normal">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={attendance.checkedIn}
+                                    onChange={() => handleCheckIn(attendance._id, attendance.checkedIn)}
+                                    className="h-5 w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
+                                  />
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="h-[72px] px-4 py-2 text-center text-text-secondary-dark text-sm">
+                                Nenhuma confirmação ainda
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Tab Content: Sugestões */}
+              {activeTab === 'suggestions' && (
+                <div className="px-4 py-3">
+                  {suggestions && suggestions.length > 0 ? (
+                    <div className="space-y-3">
+                      {suggestions.map((suggestion) => (
+                        <div key={suggestion._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <p className="text-white text-base">{suggestion.content}</p>
+                              <p className="text-text-secondary-dark text-sm mt-1">
+                                {suggestion.isAnonymous ? 'Anônimo' : suggestion.authorName || 'Sem nome'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <span className="flex items-center gap-1 text-primary">
+                                <span className="material-symbols-outlined text-lg">thumb_up</span>
+                                <span className="text-sm">{suggestion.votesCount}</span>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              suggestion.status === 'aprovada' ? 'bg-green-900/50 text-green-300' :
+                              suggestion.status === 'pendente' ? 'bg-yellow-900/50 text-yellow-300' :
+                              'bg-red-900/50 text-red-300'
                             }`}>
-                              {row.status}
+                              {suggestion.status === 'aprovada' ? 'Aprovada' : suggestion.status === 'pendente' ? 'Pendente' : 'Rejeitada'}
                             </span>
-                          </td>
-                          <td className="h-[72px] px-4 py-2 w-28 text-center text-sm font-normal leading-normal">
-                            <input 
-                              type="checkbox" 
-                              defaultChecked={row.checked}
-                              className="h-5 w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
-                            />
-                          </td>
-                        </tr>
+                            {suggestion.isAnswered && (
+                              <span className="text-xs px-2 py-1 rounded-full bg-blue-900/50 text-blue-300">
+                                Respondida
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            {suggestion.status === 'pendente' && (
+                              <>
+                                <button
+                                  onClick={() => updateSuggestionStatus({ id: suggestion._id, status: 'aprovada' })}
+                                  className="text-xs px-3 py-1 bg-green-900/50 hover:bg-green-800/50 text-green-300 rounded transition-colors"
+                                >
+                                  Aprovar
+                                </button>
+                                <button
+                                  onClick={() => updateSuggestionStatus({ id: suggestion._id, status: 'rejeitada' })}
+                                  className="text-xs px-3 py-1 bg-red-900/50 hover:bg-red-800/50 text-red-300 rounded transition-colors"
+                                >
+                                  Rejeitar
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => markSuggestionAnswered({ id: suggestion._id, isAnswered: !suggestion.isAnswered })}
+                              className="text-xs px-3 py-1 bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 rounded transition-colors"
+                            >
+                              {suggestion.isAnswered ? 'Marcar como não respondida' : 'Marcar como respondida'}
+                            </button>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 text-text-secondary-dark">
+                      Nenhuma sugestão ainda
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Tab Content: Enquetes */}
+              {activeTab === 'polls' && (
+                <div className="px-4 py-3">
+                  {polls && polls.length > 0 ? (
+                    <div className="space-y-4">
+                      {polls.map((poll) => (
+                        <div key={poll._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-white text-lg font-bold">{poll.question}</h3>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              poll.isActive ? 'bg-green-900/50 text-green-300' : 'bg-gray-700/50 text-gray-300'
+                            }`}>
+                              {poll.isActive ? 'Ativa' : 'Inativa'}
+                            </span>
+                          </div>
+                          <div className="space-y-2 mb-3">
+                            {poll.options?.map((option) => (
+                              <div key={option._id} className="flex items-center justify-between text-sm">
+                                <span className="text-white">{option.optionText}</span>
+                                <span className="text-primary font-bold">{option.votesCount} votos</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between pt-3 border-t border-border-dark">
+                            <p className="text-text-secondary-dark text-sm">
+                              Total de votos: {poll.totalVotes}
+                            </p>
+                            <button
+                              onClick={() => togglePollActive({ id: poll._id, isActive: !poll.isActive })}
+                              className={`text-xs px-3 py-1 rounded transition-colors ${
+                                poll.isActive 
+                                  ? 'bg-red-900/50 hover:bg-red-800/50 text-red-300' 
+                                  : 'bg-green-900/50 hover:bg-green-800/50 text-green-300'
+                              }`}
+                            >
+                              {poll.isActive ? 'Desativar' : 'Ativar'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 text-text-secondary-dark">
+                      Nenhuma enquete criada ainda
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -127,15 +427,20 @@ const EventManagement: React.FC = () => {
           <div className="sticky bottom-0 w-full bg-surface-dark/95 backdrop-blur-sm border-t border-border-dark p-4 z-20">
             <div className="max-w-[960px] mx-auto flex justify-end items-center gap-4">
               <button 
-                onClick={() => navigate('/dashboard')}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-red-900/80 hover:bg-red-800 text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 transition-colors"
+                onClick={() => handleUpdateStatus('encerrado')}
+                disabled={event.status === 'encerrado'}
+                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-red-900/80 hover:bg-red-800 text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-lg">stop_circle</span>
                 <span className="truncate">Finalizar Evento</span>
               </button>
               <button 
-                onClick={() => navigate('/projection/123')}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors"
+                onClick={() => {
+                  handleUpdateStatus('ao_vivo');
+                  navigate(`/projection/${event.shareLinkCode}`);
+                }}
+                disabled={event.status === 'encerrado'}
+                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-lg">play_circle</span>
                 <span className="truncate">Iniciar Evento</span>

@@ -46,7 +46,7 @@ const App: React.FC = () => {
           }
         />
         <Route
-          path="/manage/:id"
+          path="/manage/:shareCode"
           element={
             <Authenticated>
               <EventManagement />
@@ -54,7 +54,7 @@ const App: React.FC = () => {
           }
         />
         <Route
-          path="/projection/:id"
+          path="/projection/:shareCode"
           element={
             <Authenticated>
               <ProjectionView />
