@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 
@@ -67,7 +67,7 @@ export const confirmAttendance = mutation({
     const event = await ctx.db.get(args.eventId);
     if (!event) {
       console.error("[confirmAttendance] ❌ Evento não encontrado:", args.eventId);
-      throw new Error("Evento não encontrado");
+      throw new ConvexError("Evento não encontrado");
     }
 
     console.log("[confirmAttendance] ✓ Evento encontrado:", event.title);
@@ -103,7 +103,7 @@ export const confirmAttendance = mutation({
         console.error("[confirmAttendance] Confirmados:", confirmedCount);
         console.error("[confirmAttendance] Limite:", event.participantLimit);
         console.log("=".repeat(80));
-        throw new Error("EVENTO_LOTADO");
+        throw new ConvexError("EVENTO_LOTADO");
       }
 
       console.log("[confirmAttendance] ✓ Evento tem vagas disponíveis");
