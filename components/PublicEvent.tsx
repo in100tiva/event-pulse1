@@ -94,6 +94,9 @@ const PublicEvent: React.FC = () => {
       return;
     }
 
+    // Verificar se usuário já tinha confirmado antes
+    const wasAlreadyConfirmed = hasConfirmed && status === 'vou';
+
     try {
       console.log('[PublicEvent] Enviando confirmação para o Convex...');
       await confirmAttendance({
@@ -114,7 +117,16 @@ const PublicEvent: React.FC = () => {
         setHasConfirmed(true);
       }
       
-      alert('Confirmação registrada com sucesso!');
+      // Mensagem diferente se já estava confirmado
+      if (wasAlreadyConfirmed) {
+        alert('Você já confirmou presença neste evento!');
+      } else if (status === 'vou') {
+        alert('Confirmação registrada com sucesso!');
+      } else if (status === 'talvez') {
+        alert('Status atualizado para "Talvez"');
+      } else {
+        alert('Status atualizado para "Não vou"');
+      }
     } catch (error: any) {
       console.error('[PublicEvent] ERRO ao confirmar presença:', error);
       console.error('[PublicEvent] Nome do erro:', error?.name);
