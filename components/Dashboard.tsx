@@ -40,10 +40,15 @@ const Dashboard: React.FC = () => {
   const { user } = useUser();
   const { organization } = useOrganization();
   const { signOut } = useClerk();
+  
+  const [showCreateOrgModal, setShowCreateOrgModal] = React.useState(false);
+  const [newOrgName, setNewOrgName] = React.useState('');
+  const [isCreatingOrg, setIsCreatingOrg] = React.useState(false);
 
   // Sincronizar usuário com Convex
   const syncUser = useMutation(api.users.syncUser);
   const syncOrganization = useMutation(api.users.syncOrganization);
+  const createOrganization = useMutation(api.users.createOrganization);
 
   // Buscar organizações e eventos
   const userOrganizations = useQuery(api.users.getUserOrganizations);
@@ -97,6 +102,39 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  const handleCreateOrganization = async () => {
+    if (!user) {
+      alert('Usuário não encontrado');
+      return;
+    }
+
+    if (!newOrgName.trim()) {
+      alert('Por favor, insira um nome para a organização');
+      return;
+    }
+
+    setIsCreatingOrg(true);
+    try {
+      await createOrganization({
+        name: newOrgName,
+        clerkId: `org_${Date.now()}_${user.id}`,
+      });
+
+      alert('Organização criada com sucesso!');
+      setShowCreateOrgModal(false);
+      setNewOrgName('');
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error('Erro ao criar organização:', error);
+      alert('Erro ao criar organização. Verifique o console.');
+    } finally {
+      setIsCreatingOrg(false);
+    }
+  };
+
   return (
     <div className="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-dark text-text-primary-dark">
       <div className="layout-container flex h-full grow flex-col">
@@ -148,6 +186,27 @@ const Dashboard: React.FC = () => {
                   <span className="truncate">Criar Novo Evento</span>
                 </button>
               </div>
+
+              {/* Aviso quando não há organizações */}
+              {userOrganizations !== undefined && userOrganizations.length === 0 && (
+                <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-yellow-300 text-2xl">info</span>
+                    <div className="flex-1">
+                      <p className="text-yellow-300 font-semibold mb-1">Você precisa de uma organização para começar</p>
+                      <p className="text-yellow-200/80 text-sm mb-3">
+                        Para criar eventos, você precisa estar em uma organização. Crie a sua agora!
+                      </p>
+                      <button
+                        onClick={() => setShowCreateOrgModal(true)}
+                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors"
+                      >
+                        ➕ Criar Minha Organização
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <h2 className="text-2xl font-bold leading-tight tracking-[-0.015em] mb-4 text-white">Seus Eventos</h2>
               
@@ -217,6 +276,52 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal para criar organização */}
+      {showCreateOrgModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-dark border border-border-dark rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold text-white mb-4">Criar Nova Organização</h2>
+            <p className="text-gray-300 mb-6">
+              Para criar eventos, você precisa estar em uma organização. Vamos criar a sua agora!
+            </p>
+            <label className="flex flex-col mb-6">
+              <p className="text-gray-300 text-base font-medium leading-normal pb-2">Nome da Organização *</p>
+              <input 
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                placeholder="ex: Minha Empresa"
+                className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary/50 focus:border-primary border border-border-dark bg-[#1a2c20] h-14 placeholder:text-[#61896f] p-[15px] text-base font-normal leading-normal text-white" 
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateOrganization();
+                  }
+                }}
+              />
+            </label>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCreateOrgModal(false);
+                  setNewOrgName('');
+                }}
+                disabled={isCreatingOrg}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateOrganization}
+                disabled={isCreatingOrg || !newOrgName.trim()}
+                className="px-6 py-2 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreatingOrg ? 'Criando...' : 'Criar Organização'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
