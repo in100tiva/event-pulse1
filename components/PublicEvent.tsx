@@ -36,6 +36,21 @@ const PublicEvent: React.FC = () => {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [waitlistName, setWaitlistName] = useState('');
   const [waitlistWhatsapp, setWaitlistWhatsapp] = useState('');
+  const [hasConfirmed, setHasConfirmed] = useState(false);
+  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
+  
+  // Verificar se usuário confirmou presença
+  const userConfirmation = useQuery(
+    api.attendance.hasConfirmedAttendance,
+    event && email ? { eventId: event._id, email } : 'skip'
+  );
+
+  // Atualizar status de confirmação quando userConfirmation mudar
+  useEffect(() => {
+    if (userConfirmation !== undefined) {
+      setHasConfirmed(userConfirmation);
+    }
+  }, [userConfirmation]);
 
   useEffect(() => {
     // Gerar ID único para o participante (baseado em localStorage)
@@ -57,6 +72,13 @@ const PublicEvent: React.FC = () => {
     const savedVotes = localStorage.getItem(votedKey);
     if (savedVotes) {
       setVotedSuggestions(new Set(JSON.parse(savedVotes)));
+    }
+
+    // Recuperar enquetes votadas para este evento
+    const votedPollsKey = `eventpulse_voted_polls_${code}`;
+    const savedPollVotes = localStorage.getItem(votedPollsKey);
+    if (savedPollVotes) {
+      setVotedPolls(new Set(JSON.parse(savedPollVotes)));
     }
   }, [code]);
 
@@ -86,6 +108,11 @@ const PublicEvent: React.FC = () => {
       // Salvar nome e email no localStorage para próximas vezes
       localStorage.setItem('eventpulse_user_name', name);
       localStorage.setItem('eventpulse_user_email', email);
+      
+      // Se confirmou "vou", marcar como confirmado
+      if (status === 'vou') {
+        setHasConfirmed(true);
+      }
       
       alert('Confirmação registrada com sucesso!');
     } catch (error: any) {
@@ -126,6 +153,11 @@ const PublicEvent: React.FC = () => {
   };
 
   const handleSubmitSuggestion = async () => {
+    if (!hasConfirmed) {
+      alert('Você precisa confirmar sua presença no evento para enviar sugestões.');
+      return;
+    }
+    
     if (!event || !suggestionText.trim()) {
       alert('Por favor, escreva sua sugestão.');
       return;
@@ -147,6 +179,11 @@ const PublicEvent: React.FC = () => {
   };
 
   const handleVoteSuggestion = async (suggestionId: Id<'suggestions'>) => {
+    if (!hasConfirmed) {
+      alert('Você precisa confirmar sua presença no evento para votar em sugestões.');
+      return;
+    }
+    
     if (!participantId) return;
 
     const suggestionIdStr = suggestionId.toString();
@@ -180,7 +217,19 @@ const PublicEvent: React.FC = () => {
   };
 
   const handleVotePoll = async (optionId: Id<'pollOptions'>) => {
+    if (!hasConfirmed) {
+      alert('Você precisa confirmar sua presença no evento para votar em enquetes.');
+      return;
+    }
+    
     if (!activePoll || !participantId) return;
+
+    // Verificar se já votou nesta enquete
+    const pollIdStr = activePoll._id.toString();
+    if (votedPolls.has(pollIdStr)) {
+      alert('Você já votou nesta enquete!');
+      return;
+    }
 
     try {
       await votePoll({
@@ -188,8 +237,19 @@ const PublicEvent: React.FC = () => {
         pollOptionId: optionId,
         participantIdentifier: participantId,
       });
+
+      // Marcar enquete como votada e salvar no localStorage
+      const newVotedPolls = new Set(votedPolls);
+      newVotedPolls.add(pollIdStr);
+      setVotedPolls(newVotedPolls);
+      
+      const votedPollsKey = `eventpulse_voted_polls_${code}`;
+      localStorage.setItem(votedPollsKey, JSON.stringify(Array.from(newVotedPolls)));
+      
+      alert('Voto registrado com sucesso!');
     } catch (error) {
       console.error('Erro ao votar:', error);
+      alert('Erro ao votar. Tente novamente.');
     }
   };
 
@@ -459,8 +519,8 @@ const PublicEvent: React.FC = () => {
                 </div>
               </section>
 
-              {/* Live Poll Section */}
-              {activePoll && (
+              {/* Live Poll Section - Só mostra se não votou ainda */}
+              {activePoll && !votedPolls.has(activePoll._id.toString()) && (
                 <section className="bg-surface-dark border-2 border-success rounded-lg p-6 shadow-lg shadow-green-900/10">
                   <div className="flex items-center gap-3 px-4 pt-2">
                     <div className="relative flex items-center">

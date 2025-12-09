@@ -155,6 +155,25 @@ export const getByEvent = query({
   },
 });
 
+// Verificar se usuário confirmou presença (status "vou")
+export const hasConfirmedAttendance = query({
+  args: { 
+    eventId: v.id("events"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const confirmation = await ctx.db
+      .query("attendanceConfirmations")
+      .withIndex("by_event_email", (q) =>
+        q.eq("eventId", args.eventId).eq("email", args.email)
+      )
+      .first();
+
+    // Retorna true apenas se existe confirmação com status "vou"
+    return confirmation?.status === "vou";
+  },
+});
+
 // Obter estatísticas de confirmação
 export const getStats = query({
   args: { eventId: v.id("events") },
