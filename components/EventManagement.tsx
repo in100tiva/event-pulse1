@@ -83,6 +83,11 @@ const EventManagement: React.FC = () => {
         id: event._id,
         status,
       });
+      
+      // Se finalizou o evento, voltar para o dashboard
+      if (status === 'encerrado') {
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status. Tente novamente.');

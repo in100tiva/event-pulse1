@@ -46,11 +46,13 @@ export const getByEvent = query({
       return [];
     }
 
-    return await ctx.db
+    const leads = await ctx.db
       .query("waitlist")
       .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
-      .order("desc")
       .collect();
+
+    // Ordenar por data de criação (mais recentes primeiro)
+    return leads.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
@@ -75,7 +77,6 @@ export const getByOrganization = query({
         const leads = await ctx.db
           .query("waitlist")
           .withIndex("by_event", (q) => q.eq("eventId", event._id))
-          .order("desc")
           .collect();
 
         return leads.map((lead) => ({
@@ -86,8 +87,9 @@ export const getByOrganization = query({
       })
     );
 
-    // Flatten array
-    return leadsWithEvent.flat();
+    // Flatten array e ordenar por data de criação (mais recentes primeiro)
+    const allLeads = leadsWithEvent.flat();
+    return allLeads.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
