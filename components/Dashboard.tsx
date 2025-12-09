@@ -68,11 +68,9 @@ const Dashboard: React.FC = () => {
   );
 
   // Buscar leads de lista de espera da organização
-  const waitlistLeads = useQuery(
-    // @ts-ignore - waitlist module will be available after Convex regenerates types
-    (api as any).waitlist?.getByOrganization,
-    currentOrgId ? { organizationId: currentOrgId } : "skip"
-  );
+  // TEMPORARIAMENTE DESABILITADO - Descomente após fazer deploy do Convex (npx convex deploy)
+  // @ts-ignore - waitlist module will be available after Convex regenerates types
+  const waitlistLeads = undefined; // useQuery((api as any).waitlist?.getByOrganization, currentOrgId ? { organizationId: currentOrgId } : "skip");
 
   // Sincronizar dados do Clerk ao montar
   useEffect(() => {
