@@ -103,7 +103,10 @@ export const confirmAttendance = mutation({
         console.error("[confirmAttendance] Confirmados:", confirmedCount);
         console.error("[confirmAttendance] Limite:", event.participantLimit);
         console.log("=".repeat(80));
-        throw new ConvexError("EVENTO_LOTADO");
+        throw new ConvexError({
+          message: "EVENTO_LOTADO",
+          code: "EVENTO_LOTADO"
+        });
       }
 
       console.log("[confirmAttendance] ✓ Evento tem vagas disponíveis");

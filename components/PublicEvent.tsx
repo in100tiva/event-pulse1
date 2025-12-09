@@ -90,14 +90,26 @@ const PublicEvent: React.FC = () => {
       alert('Confirmação registrada com sucesso!');
     } catch (error: any) {
       console.error('[PublicEvent] ERRO ao confirmar presença:', error);
+      console.error('[PublicEvent] Nome do erro:', error?.name);
       console.error('[PublicEvent] Tipo do erro:', typeof error);
       console.error('[PublicEvent] Mensagem do erro:', error?.message);
+      console.error('[PublicEvent] Data do erro:', error?.data);
       console.error('[PublicEvent] Stack:', error?.stack);
       
+      // ConvexError retorna os dados em error.data
+      const errorMessage = error?.data?.message || error?.message || '';
+      const errorCode = error?.data?.code || '';
+      const errorString = error?.toString() || '';
+      
+      console.log('[PublicEvent] errorMessage:', errorMessage);
+      console.log('[PublicEvent] errorCode:', errorCode);
+      console.log('[PublicEvent] errorString:', errorString);
+      
       // Se o evento está lotado, mostrar modal de lista de espera
-      const isEventoLotado = error?.message?.includes('EVENTO_LOTADO') || 
-                            error?.toString()?.includes('EVENTO_LOTADO') ||
-                            (error?.message === 'EVENTO_LOTADO');
+      const isEventoLotado = errorMessage === 'EVENTO_LOTADO' ||
+                            errorCode === 'EVENTO_LOTADO' ||
+                            errorMessage?.includes('EVENTO_LOTADO') || 
+                            errorString?.includes('EVENTO_LOTADO');
       
       console.log('[PublicEvent] É evento lotado?', isEventoLotado);
       
@@ -108,7 +120,7 @@ const PublicEvent: React.FC = () => {
         setShowWaitlistModal(true);
       } else {
         console.log('[PublicEvent] Mostrando alerta de erro genérico');
-        alert(`Erro ao confirmar presença: ${error?.message || 'Tente novamente.'}`);
+        alert(`Erro ao confirmar presença: ${errorMessage || 'Tente novamente.'}`);
       }
     }
   };
