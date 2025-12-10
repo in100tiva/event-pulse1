@@ -290,11 +290,19 @@ const Dashboard: React.FC = () => {
                     <div className="flex justify-center items-center py-20">
                       <div className="text-gray-400">Carregando eventos...</div>
                     </div>
-                  ) : events.filter(e => e.status === activeTab || (activeTab === 'publicados' && e.status === 'publicado')).length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {events
-                        .filter(e => e.status === activeTab || (activeTab === 'publicados' && e.status === 'publicado'))
-                        .map((event) => (
+                  ) : (() => {
+                    // Mapear aba para status correto
+                    const statusMap: Record<string, string> = {
+                      'publicados': 'publicado',
+                      'ao_vivo': 'ao_vivo',
+                      'encerrados': 'encerrado'
+                    };
+                    const targetStatus = statusMap[activeTab];
+                    const filteredEvents = events.filter(e => e.status === targetStatus);
+                    
+                    return filteredEvents.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredEvents.map((event) => (
                     <div 
                       key={event._id}
                       onClick={() => navigate(`/manage/${event.shareLinkCode}`)}
@@ -338,8 +346,8 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                         ))}
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                     <div className="w-full flex flex-col items-center justify-center text-center py-20 px-6 rounded-xl bg-surface-dark border-2 border-dashed border-border-dark mt-6">
                       <div className="w-20 h-20 flex items-center justify-center bg-gray-800/50 rounded-full mb-6">
                         <span className="material-symbols-outlined text-4xl text-primary">event</span>
@@ -355,7 +363,8 @@ const Dashboard: React.FC = () => {
                         {activeTab === 'encerrados' && 'Eventos encerrados aparecerão aqui.'}
                       </p>
                     </div>
-                  )}
+                    );
+                  })()}
                 </>
               )}
 
