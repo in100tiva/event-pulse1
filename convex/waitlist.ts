@@ -109,7 +109,7 @@ export const getByOrganization = query({
             // Se houver erro ao buscar leads de um evento específico, retornar array vazio
             console.error(`[waitlist:getByOrganization] ERRO ao buscar leads do evento ${event._id}:`, error);
             return [];
-          }
+          }n
         })
       );
 

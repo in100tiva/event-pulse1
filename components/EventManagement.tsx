@@ -167,13 +167,22 @@ const EventManagement: React.FC = () => {
             <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
               {/* Header */}
               <div className="flex flex-wrap justify-between items-center gap-4 p-4">
-                <div className="flex flex-col gap-2">
-                  <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">{event.title}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-text-secondary-dark text-base font-normal leading-normal">Status:</span>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(event.status)}`}>
-                      {getStatusLabel(event.status)}
-                    </span>
+                <div className="flex items-start gap-4">
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="flex items-center justify-center rounded-lg h-10 w-10 bg-gray-800/50 hover:bg-gray-800 transition-colors mt-1"
+                    title="Voltar ao Dashboard"
+                  >
+                    <span className="material-symbols-outlined">arrow_back</span>
+                  </button>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">{event.title}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-secondary-dark text-base font-normal leading-normal">Status:</span>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(event.status)}`}>
+                        {getStatusLabel(event.status)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

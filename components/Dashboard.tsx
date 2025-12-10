@@ -44,6 +44,7 @@ const Dashboard: React.FC = () => {
   const [showCreateOrgModal, setShowCreateOrgModal] = React.useState(false);
   const [newOrgName, setNewOrgName] = React.useState('');
   const [isCreatingOrg, setIsCreatingOrg] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'publicados' | 'ao_vivo' | 'encerrados' | 'waitlist'>('publicados');
 
   // Sincronizar usuário com Convex
   const syncUser = useMutation(api.users.syncUser);
@@ -214,15 +215,86 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
 
-              <h2 className="text-2xl font-bold leading-tight tracking-[-0.015em] mb-4 text-white">Seus Eventos</h2>
-              
-              {events === undefined ? (
-                <div className="flex justify-center items-center py-20">
-                  <div className="text-gray-400">Carregando eventos...</div>
-                </div>
-              ) : events.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
+              {/* Tabs de Eventos */}
+              <div className="flex border-b border-border-dark mb-6 gap-8">
+                <button
+                  onClick={() => setActiveTab('publicados')}
+                  className={`flex items-center gap-2 pb-3 pt-2 border-b-2 transition-colors ${
+                    activeTab === 'publicados'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">public</span>
+                  <span className="font-bold">Publicados</span>
+                  {events && (
+                    <span className="text-xs bg-primary/20 px-2 py-0.5 rounded-full">
+                      {events.filter(e => e.status === 'publicado').length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('ao_vivo')}
+                  className={`flex items-center gap-2 pb-3 pt-2 border-b-2 transition-colors ${
+                    activeTab === 'ao_vivo'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">play_circle</span>
+                  <span className="font-bold">Ao Vivo</span>
+                  {events && (
+                    <span className="text-xs bg-primary/20 px-2 py-0.5 rounded-full">
+                      {events.filter(e => e.status === 'ao_vivo').length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('encerrados')}
+                  className={`flex items-center gap-2 pb-3 pt-2 border-b-2 transition-colors ${
+                    activeTab === 'encerrados'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">check_circle</span>
+                  <span className="font-bold">Encerrados</span>
+                  {events && (
+                    <span className="text-xs bg-primary/20 px-2 py-0.5 rounded-full">
+                      {events.filter(e => e.status === 'encerrado').length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('waitlist')}
+                  className={`flex items-center gap-2 pb-3 pt-2 border-b-2 transition-colors ${
+                    activeTab === 'waitlist'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">group_add</span>
+                  <span className="font-bold">Lista de Espera</span>
+                  {waitlistLeads && (
+                    <span className="text-xs bg-yellow-600/20 px-2 py-0.5 rounded-full text-yellow-300">
+                      {waitlistLeads.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Conteúdo das Abas de Eventos */}
+              {activeTab !== 'waitlist' && (
+                <>
+                  {events === undefined ? (
+                    <div className="flex justify-center items-center py-20">
+                      <div className="text-gray-400">Carregando eventos...</div>
+                    </div>
+                  ) : events.filter(e => e.status === activeTab || (activeTab === 'publicados' && e.status === 'publicado')).length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {events
+                        .filter(e => e.status === activeTab || (activeTab === 'publicados' && e.status === 'publicado'))
+                        .map((event) => (
                     <div 
                       key={event._id}
                       onClick={() => navigate(`/manage/${event.shareLinkCode}`)}
@@ -265,22 +337,32 @@ const Dashboard: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="w-full flex flex-col items-center justify-center text-center py-20 px-6 rounded-xl bg-surface-dark border-2 border-dashed border-border-dark mt-6">
-                  <div className="w-20 h-20 flex items-center justify-center bg-gray-800/50 rounded-full mb-6">
-                    <span className="material-symbols-outlined text-4xl text-primary">event</span>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2 text-white">Vamos criar seu primeiro evento!</h3>
-                  <p className="text-gray-400 max-w-sm">
-                    Seu painel está pronto. Clique em 'Criar Novo Evento' para começar.
-                  </p>
-                </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="w-full flex flex-col items-center justify-center text-center py-20 px-6 rounded-xl bg-surface-dark border-2 border-dashed border-border-dark mt-6">
+                      <div className="w-20 h-20 flex items-center justify-center bg-gray-800/50 rounded-full mb-6">
+                        <span className="material-symbols-outlined text-4xl text-primary">event</span>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2 text-white">
+                        {activeTab === 'publicados' && 'Nenhum evento publicado'}
+                        {activeTab === 'ao_vivo' && 'Nenhum evento ao vivo'}
+                        {activeTab === 'encerrados' && 'Nenhum evento encerrado'}
+                      </h3>
+                      <p className="text-gray-400 max-w-sm">
+                        {activeTab === 'publicados' && 'Publique um evento para que as pessoas possam confirmar presença.'}
+                        {activeTab === 'ao_vivo' && 'Inicie um evento para interagir com os participantes em tempo real.'}
+                        {activeTab === 'encerrados' && 'Eventos encerrados aparecerão aqui.'}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Seção de Leads de Lista de Espera */}
-              {waitlistLeads && Array.isArray(waitlistLeads) && waitlistLeads.length > 0 && (
+              {/* Conteúdo da Aba Lista de Espera */}
+              {activeTab === 'waitlist' && (
+                <>
+                  {waitlistLeads && Array.isArray(waitlistLeads) && waitlistLeads.length > 0 ? (
                 <div className="mt-12">
                   <div className="flex items-center justify-between mb-6">
                     <div>
@@ -407,6 +489,18 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                  ) : (
+                    <div className="w-full flex flex-col items-center justify-center text-center py-20 px-6 rounded-xl bg-surface-dark border-2 border-dashed border-border-dark">
+                      <div className="w-20 h-20 flex items-center justify-center bg-gray-800/50 rounded-full mb-6">
+                        <span className="material-symbols-outlined text-4xl text-yellow-300">group_add</span>
+                      </div>
+                      <h3 className="text-xl font-bold mb-2 text-white">Nenhum lead na lista de espera</h3>
+                      <p className="text-gray-400 max-w-sm">
+                        Quando os eventos atingirem o limite, as pessoas que tentarem confirmar presença serão adicionadas à lista de espera.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </main>
           </div>
