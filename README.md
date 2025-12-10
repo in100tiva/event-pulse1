@@ -1,42 +1,90 @@
 # 🎉 EventPulse
 
-> Plataforma completa para gerenciar eventos, coletar confirmações de presença, receber sugestões e realizar enquetes em tempo real.
+> Plataforma completa de gerenciamento de eventos com engajamento em tempo real
 
-## 🚀 Funcionalidades
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Convex](https://img.shields.io/badge/Convex-FF6B6B?logo=convex&logoColor=white)](https://www.convex.dev/)
 
-- ✅ **Autenticação Segura** - Integração com Clerk (suporta múltiplas organizações)
-- ✅ **Gerenciamento de Eventos** - Criar, editar e publicar eventos
-- ✅ **Confirmações RSVP** - Participantes confirmam presença
-- ✅ **Sugestões em Tempo Real** - Sistema de Q&A com votação
-- ✅ **Enquetes Interativas** - Criar e votar em tempo real
-- ✅ **Links Públicos** - Compartilhar eventos facilmente
-- ✅ **Modo Projeção** - Visão otimizada para apresentações
-- ✅ **Check-in** - Controle de presença no evento
+## 📋 Sobre o Projeto
 
-## 🛠️ Tecnologias
+EventPulse é uma plataforma moderna e completa para criação e gerenciamento de eventos, permitindo interação em tempo real com participantes através de confirmações de presença, sugestões, enquetes e muito mais.
 
-- **Frontend:** React 19 + TypeScript + Vite
-- **Rotas:** React Router v6
-- **Banco de Dados:** Convex (real-time)
-- **Autenticação:** Clerk
-- **Styling:** Tailwind CSS
-- **Hospedagem:** Vercel (recomendado)
+### ✨ Funcionalidades Principais
 
-## 📦 Instalação Local
+#### 🎯 Gerenciamento de Eventos
+- ✅ **Criação de Eventos** - Interface intuitiva para criar eventos online ou presenciais
+- 📊 **Dashboard com Abas** - Organize eventos por status (Publicados, Ao Vivo, Encerrados)
+- 🔄 **Status Dinâmicos** - Rascunho → Publicado → Ao Vivo → Encerrado
+- 📱 **Links Compartilháveis** - Gere links únicos para cada evento
+- 🎨 **Páginas Públicas** - Página dedicada para cada evento
+
+#### 👥 Gestão de Participantes
+- ✅ **Confirmações de Presença** - Sistema "Vou", "Talvez", "Não vou"
+- 🚫 **Limite de Participantes** - Controle de vagas com bloqueio automático
+- 📋 **Lista de Espera Inteligente** - Captura de leads quando evento lota
+- 📞 **Integração WhatsApp** - Botões diretos para contato
+- ✓ **Check-in Digital** - Marque presença dos participantes
+- 📥 **Exportação CSV** - Exporte lista de participantes
+
+#### 💡 Engajamento em Tempo Real
+- 💭 **Mural de Sugestões** - Participantes enviam perguntas/sugestões
+- 👍 **Sistema de Votação** - Vote em sugestões (um voto por pessoa)
+- 📊 **Enquetes Ao Vivo** - Crie enquetes com resultados em tempo real
+- ✅ **Moderação de Conteúdo** - Aprove/rejeite sugestões antes de publicar
+- 🎭 **Sugestões Anônimas** - Opção para participantes serem anônimos
+
+#### 🔐 Controles de Acesso
+- 🔒 **Restrição de Interação** - Apenas confirmados podem interagir
+- 🗳️ **Voto Único em Enquetes** - Enquete some após votar
+- 👤 **Autenticação com Clerk** - Login seguro com múltiplos provedores
+- 🏢 **Sistema de Organizações** - Gerencie eventos por organização
+
+#### 📈 Lista de Espera & Leads
+- 📋 **Captura Automática** - Modal de waitlist quando evento lota
+- 📞 **Dados de Contato** - Nome completo + WhatsApp
+- 💼 **Dashboard de Leads** - Visualize todos os leads por organização
+- 📊 **Aba Dedicada** - Seção exclusiva para leads no dashboard
+
+#### 🎨 Interface & UX
+- 🌙 **Modo Escuro** - Design moderno e elegante
+- 📱 **Responsivo** - Funciona perfeitamente em mobile
+- ⚡ **Tempo Real** - Atualizações instantâneas com Convex
+- 🔔 **Feedback Visual** - Mensagens claras para cada ação
+- ⬅️ **Navegação Intuitiva** - Botão voltar e navegação fluida
+
+## 🚀 Tecnologias Utilizadas
+
+### Frontend
+- **React 18** - Biblioteca UI
+- **TypeScript** - Tipagem estática
+- **Vite** - Build tool ultra-rápido
+- **React Router** - Navegação SPA
+- **Tailwind CSS** - Estilização utility-first
+
+### Backend & Database
+- **Convex** - Backend-as-a-Service com tempo real
+- **Clerk** - Autenticação e gerenciamento de usuários
+
+### Deploy
+- **Vercel** - Deploy do frontend
+- **Convex Cloud** - Backend e database
+
+## 📦 Instalação
 
 ### Pré-requisitos
-
 - Node.js 18+ 
 - npm ou yarn
-- Conta no [Clerk](https://clerk.com)
-- Conta no [Convex](https://convex.dev)
+- Conta no Convex
+- Conta no Clerk
 
 ### Passo a Passo
 
 1. **Clone o repositório**
 ```bash
-git clone https://github.com/seu-usuario/eventpulse.git
-cd eventpulse
+git clone https://github.com/in100tiva/event-pulse1.git
+cd event-pulse1
 ```
 
 2. **Instale as dependências**
@@ -46,146 +94,101 @@ npm install
 
 3. **Configure as variáveis de ambiente**
 ```bash
-# Copie o template
-cp .env.example .env
-
-# Edite .env com suas credenciais
-VITE_CONVEX_URL=https://your-deployment.convex.cloud
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_key
+# Crie o arquivo .env.local na raiz do projeto
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_CONVEX_URL=https://...convex.cloud
 ```
 
 4. **Configure o Convex**
 ```bash
-# Inicie o Convex em modo dev
 npx convex dev
-
-# Configure a variável de ambiente do Clerk no Convex
-npx convex env set CLERK_JWT_ISSUER_DOMAIN https://xxx.clerk.accounts.dev
 ```
 
-5. **Execute o projeto**
+5. **Inicie o servidor de desenvolvimento**
 ```bash
 npm run dev
 ```
 
 Acesse: `http://localhost:3000`
 
-## 🚀 Deploy em Produção
-
-### Deploy Rápido (5 passos)
-
-Para fazer deploy na Vercel, siga o guia rápido:
-
-📖 **[README_DEPLOY.md](README_DEPLOY.md)** - Deploy em 5 passos (15 minutos)
-
-### Documentação Completa de Deploy
-
-- 📋 **[PRE_DEPLOY_CHECKLIST.md](PRE_DEPLOY_CHECKLIST.md)** - Checklist completo antes do deploy
-- 🔐 **[CLERK_SETUP.md](CLERK_SETUP.md)** - Configuração detalhada do Clerk
-- 🗄️ **[CONVEX_SETUP.md](CONVEX_SETUP.md)** - Configuração detalhada do Convex
-- 🌐 **[DEPLOY_VERCEL.md](DEPLOY_VERCEL.md)** - Guia completo de deploy na Vercel
-- 📊 **[RESUMO_DEPLOY.md](RESUMO_DEPLOY.md)** - Resumo de todas as alterações
-
-## 📁 Estrutura do Projeto
-
-```
-eventpulse/
-├── components/           # Componentes React
-│   ├── Dashboard.tsx    # Painel principal
-│   ├── CreateEvent.tsx  # Criação de eventos
-│   ├── EventManagement.tsx
-│   ├── PublicEvent.tsx  # Página pública
-│   ├── ProjectionView.tsx
-│   └── Login.tsx
-├── convex/              # Backend Convex
-│   ├── schema.ts        # Schema do banco
-│   ├── events.ts        # Functions de eventos
-│   ├── users.ts         # Functions de usuários
-│   ├── attendance.ts    # Confirmações de presença
-│   ├── suggestions.ts   # Sistema de Q&A
-│   └── polls.ts         # Enquetes
-├── App.tsx              # Rotas principais
-├── index.tsx            # Entry point
-├── vercel.json          # Configuração Vercel
-└── package.json
-```
-
-## 🔐 Variáveis de Ambiente
-
-### Desenvolvimento (.env)
-```env
-VITE_CONVEX_URL=https://xxx.convex.cloud
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
-GEMINI_API_KEY=xxx  # Opcional
-```
-
-### Produção (Vercel)
-```env
-VITE_CONVEX_URL=https://xxx.convex.cloud
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_xxx
-```
-
-### Convex
-```env
-CLERK_JWT_ISSUER_DOMAIN=https://xxx.clerk.accounts.dev
-```
-
-## 📱 Rotas da Aplicação
-
-| Rota | Tipo | Descrição |
-|------|------|-----------|
-| `/` | Pública | Redirect para login |
-| `/login` | Pública | Autenticação |
-| `/dashboard` | Protegida | Painel de eventos |
-| `/create-event` | Protegida | Criar novo evento |
-| `/manage/:id` | Protegida | Gerenciar evento |
-| `/event/:code` | Pública | Página pública do evento |
-| `/projection/:id` | Protegida | Modo apresentação |
-
-## 🧪 Testando
-
-```bash
-# Build de produção
-npm run build
-
-# Preview local
-npm run preview
-```
-
 ## 📚 Documentação Adicional
 
-- **[SETUP.md](SETUP.md)** - Setup inicial detalhado
-- **[PROXIMOS_PASSOS.md](PROXIMOS_PASSOS.md)** - Roadmap de features
-- **[INICIO_RAPIDO.md](INICIO_RAPIDO.md)** - Início rápido
+- [📖 Início Rápido](docs/INICIO_RAPIDO.md)
+- [🔐 Configuração Clerk](docs/CLERK_SETUP.md)
+- [🚀 Deploy na Vercel](docs/RESUMO_DEPLOY.md)
+- [✅ Checklist Pré-Deploy](docs/PRE_DEPLOY_CHECKLIST.md)
+- [🧪 Testes de Organização](docs/TESTE_ORGANIZACOES.md)
 
-## 🤝 Contribuindo
+## 🤝 Como Contribuir
 
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -m 'feat: adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+EventPulse é um projeto open-source e **adoramos contribuições**! 
 
-## 📝 Licença
+### 💎 Benefícios para Contribuidores
+- 🌟 Seu nome na seção **Equipe & Desenvolvedores**
+- 📈 Portfólio com projeto real em produção
+- 🎓 Aprendizado com código TypeScript + React moderno
+- 🤝 Networking com outros desenvolvedores
 
-Este projeto está sob a licença MIT.
+### Primeiros Passos
+1. Leia o [Guia de Contribuição](CONTRIBUTING.md)
+2. Veja as [Issues abertas](https://github.com/in100tiva/event-pulse1/issues)
+3. Leia o [Código de Conduta](CODE_OF_CONDUCT.md)
+4. Faça um fork e comece a contribuir!
 
-## 💬 Suporte
+## 👥 Equipe & Desenvolvedores
 
-- 📖 [Documentação Convex](https://docs.convex.dev)
-- 📖 [Documentação Clerk](https://clerk.com/docs)
-- 📖 [Documentação Vercel](https://vercel.com/docs)
-- 📖 [Documentação React Router](https://reactrouter.com)
+### 👨‍💻 Criador Principal
+**Luan Oliveira dos Santos** - Idealizador e desenvolvedor principal
+- GitHub: [@in100tiva](https://github.com/in100tiva)
 
-## ✨ Agradecimentos
+### 🌟 Contribuidores
 
-Construído com:
-- [React](https://react.dev)
-- [Convex](https://convex.dev)
-- [Clerk](https://clerk.com)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Vite](https://vitejs.dev)
+Seja o primeiro a contribuir e ter seu nome aqui! 🎉
+
+<!--
+Adicione seu nome após sua primeira contribuição ser aceita:
+- **[Seu Nome](seu-github)** - Descrição da contribuição
+-->
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+```
+MIT License
+
+Copyright (c) 2025 Luan Oliveira dos Santos
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+## 🙏 Agradecimentos
+
+- [Convex](https://www.convex.dev/) - Backend poderoso e em tempo real
+- [Clerk](https://clerk.com/) - Autenticação sem complicação
+- [Vercel](https://vercel.com/) - Deploy simplificado
+- Todos os contribuidores que fazem este projeto melhor! ❤️
+
+## 📞 Contato & Suporte
+
+- 🐛 **Bugs**: Abra uma [issue](https://github.com/in100tiva/event-pulse1/issues)
+- 💡 **Ideias**: Compartilhe nas [discussions](https://github.com/in100tiva/event-pulse1/discussions)
+- 📧 **Email**: Contate através do GitHub
 
 ---
 
-**Desenvolvido com ❤️ para criar experiências incríveis em eventos**
+<p align="center">
+  Feito com ❤️ por <a href="https://github.com/in100tiva">Luan Oliveira dos Santos</a>
+</p>
+
+<p align="center">
+  ⭐ Se este projeto te ajudou, considere dar uma estrela!
+</p>
