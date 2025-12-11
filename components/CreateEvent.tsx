@@ -85,10 +85,12 @@ const CreateEvent: React.FC = () => {
       setModeration(existingEvent.moderateSuggestions);
       
       // Carregar configurações de check-in se existir
-      if (existingEvent.requireCheckIn) {
+      if (existingEvent.requireCheckIn === true) {
         setRequireCheckIn(true);
         setCheckInWindowHours(String(existingEvent.checkInWindowHours || 4));
         setCheckInDeadlineMinutes(String(existingEvent.checkInDeadlineMinutes || 30));
+      } else {
+        setRequireCheckIn(false);
       }
     }
   }, [existingEvent]);

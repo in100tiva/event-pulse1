@@ -22,7 +22,7 @@ export const create = mutation({
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
     confirmationDeadline: v.optional(v.number()),
-    requireCheckIn: v.boolean(),
+    requireCheckIn: v.optional(v.boolean()),
     checkInWindowHours: v.optional(v.number()),
     checkInDeadlineMinutes: v.optional(v.number()),
     allowAnonymousSuggestions: v.boolean(),

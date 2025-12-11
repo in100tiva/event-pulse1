@@ -243,7 +243,7 @@ export const getCheckInStatus = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.eventId);
-    if (!event || !event.requireCheckIn) {
+    if (!event || !event.requireCheckIn || event.requireCheckIn === false) {
       return { enabled: false };
     }
 
@@ -284,7 +284,7 @@ export const publicCheckIn = mutation({
     if (!event) throw new Error("Evento não encontrado");
     
     // 2. Verificar se check-in está habilitado
-    if (!event.requireCheckIn) {
+    if (!event.requireCheckIn || event.requireCheckIn === false) {
       throw new Error("Check-in não é necessário para este evento");
     }
 
@@ -336,7 +336,7 @@ export const releaseNoShowSlots = internalMutation({
     
     // Buscar eventos com check-in obrigatório
     const events = await ctx.db.query("events").collect();
-    const eventsWithCheckIn = events.filter(e => e.requireCheckIn);
+    const eventsWithCheckIn = events.filter(e => e.requireCheckIn === true);
 
     for (const event of eventsWithCheckIn) {
       // Verificar se deadline de check-in passou
