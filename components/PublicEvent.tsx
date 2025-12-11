@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
+import { showToast } from '../src/utils/toast';
 
 const PublicEvent: React.FC = () => {
   const { code } = useParams<{ code: string }>();
@@ -52,6 +53,9 @@ const PublicEvent: React.FC = () => {
     }
   }, [userConfirmation]);
 
+  // Verificar se o prazo de confirmação expirou
+  const isPastDeadline = event?.confirmationDeadline && Date.now() > event.confirmationDeadline;
+
   useEffect(() => {
     // Gerar ID único para o participante (baseado em localStorage)
     let id = localStorage.getItem('eventpulse_participant_id');
@@ -90,7 +94,7 @@ const PublicEvent: React.FC = () => {
     console.log('[PublicEvent] Limite do evento:', event?.participantLimit);
     
     if (!event || !name || !email) {
-      alert('Por favor, preencha seu nome e email.');
+      showToast.warning('Por favor, preencha seu nome e email.');
       return;
     }
 
@@ -119,13 +123,13 @@ const PublicEvent: React.FC = () => {
       
       // Mensagem diferente se já estava confirmado
       if (wasAlreadyConfirmed) {
-        alert('Você já confirmou presença neste evento!');
+        showToast.info('Você já confirmou presença neste evento!');
       } else if (status === 'vou') {
-        alert('Confirmação registrada com sucesso!');
+        showToast.success('Confirmação registrada com sucesso!');
       } else if (status === 'talvez') {
-        alert('Status atualizado para "Talvez"');
+        showToast.info('Status atualizado para "Talvez"');
       } else {
-        alert('Status atualizado para "Não vou"');
+        showToast.info('Status atualizado para "Não vou"');
       }
     } catch (error: any) {
       console.error('[PublicEvent] ERRO ao confirmar presença:', error);
@@ -144,6 +148,18 @@ const PublicEvent: React.FC = () => {
       console.log('[PublicEvent] errorCode:', errorCode);
       console.log('[PublicEvent] errorString:', errorString);
       
+      // Verificar se é erro de prazo encerrado
+      const isPrazoEncerrado = errorMessage === 'PRAZO_ENCERRADO' || 
+                               errorCode === 'PRAZO_ENCERRADO' ||
+                               errorMessage?.includes('PRAZO_ENCERRADO') || 
+                               errorString?.includes('PRAZO_ENCERRADO');
+      
+      if (isPrazoEncerrado) {
+        console.log('[PublicEvent] Prazo de confirmação encerrado');
+        showToast.error('O prazo para confirmação de presença já encerrou.');
+        return;
+      }
+      
       // Se o evento está lotado, mostrar modal de lista de espera
       const isEventoLotado = errorMessage === 'EVENTO_LOTADO' ||
                             errorCode === 'EVENTO_LOTADO' ||
@@ -159,19 +175,19 @@ const PublicEvent: React.FC = () => {
         setShowWaitlistModal(true);
       } else {
         console.log('[PublicEvent] Mostrando alerta de erro genérico');
-        alert(`Erro ao confirmar presença: ${errorMessage || 'Tente novamente.'}`);
+        showToast.error(`Erro ao confirmar presença: ${errorMessage || 'Tente novamente.'}`);
       }
     }
   };
 
   const handleSubmitSuggestion = async () => {
     if (!hasConfirmed) {
-      alert('Você precisa confirmar sua presença no evento para enviar sugestões.');
+      showToast.warning('Você precisa confirmar sua presença no evento para enviar sugestões.');
       return;
     }
     
     if (!event || !suggestionText.trim()) {
-      alert('Por favor, escreva sua sugestão.');
+      showToast.warning('Por favor, escreva sua sugestão.');
       return;
     }
 
@@ -183,16 +199,16 @@ const PublicEvent: React.FC = () => {
         isAnonymous,
       });
       setSuggestionText('');
-      alert('Sugestão enviada com sucesso!');
+      showToast.success('Sugestão enviada com sucesso!');
     } catch (error) {
       console.error('Erro ao enviar sugestão:', error);
-      alert('Erro ao enviar sugestão. Tente novamente.');
+      showToast.error('Erro ao enviar sugestão. Tente novamente.');
     }
   };
 
   const handleVoteSuggestion = async (suggestionId: Id<'suggestions'>) => {
     if (!hasConfirmed) {
-      alert('Você precisa confirmar sua presença no evento para votar em sugestões.');
+      showToast.warning('Você precisa confirmar sua presença no evento para votar em sugestões.');
       return;
     }
     
@@ -202,7 +218,7 @@ const PublicEvent: React.FC = () => {
     
     // Verificar se já votou nesta sugestão
     if (votedSuggestions.has(suggestionIdStr)) {
-      alert('Você já votou nesta sugestão!');
+      showToast.info('Você já votou nesta sugestão!');
       return;
     }
 
@@ -224,13 +240,13 @@ const PublicEvent: React.FC = () => {
       }
     } catch (error) {
       console.error('Erro ao votar:', error);
-      alert('Erro ao votar. Tente novamente.');
+      showToast.error('Erro ao votar. Tente novamente.');
     }
   };
 
   const handleVotePoll = async (optionId: Id<'pollOptions'>) => {
     if (!hasConfirmed) {
-      alert('Você precisa confirmar sua presença no evento para votar em enquetes.');
+      showToast.warning('Você precisa confirmar sua presença no evento para votar em enquetes.');
       return;
     }
     
@@ -239,7 +255,7 @@ const PublicEvent: React.FC = () => {
     // Verificar se já votou nesta enquete
     const pollIdStr = activePoll._id.toString();
     if (votedPolls.has(pollIdStr)) {
-      alert('Você já votou nesta enquete!');
+      showToast.info('Você já votou nesta enquete!');
       return;
     }
 
@@ -258,23 +274,23 @@ const PublicEvent: React.FC = () => {
       const votedPollsKey = `eventpulse_voted_polls_${code}`;
       localStorage.setItem(votedPollsKey, JSON.stringify(Array.from(newVotedPolls)));
       
-      alert('Voto registrado com sucesso!');
+      showToast.success('Voto registrado com sucesso!');
     } catch (error) {
       console.error('Erro ao votar:', error);
-      alert('Erro ao votar. Tente novamente.');
+      showToast.error('Erro ao votar. Tente novamente.');
     }
   };
 
   const handleJoinWaitlist = async () => {
     if (!event || !waitlistName.trim() || !waitlistWhatsapp.trim()) {
-      alert('Por favor, preencha seu nome e WhatsApp.');
+      showToast.warning('Por favor, preencha seu nome e WhatsApp.');
       return;
     }
 
     // Validar formato básico do WhatsApp
     const whatsappRegex = /^[\d\s\-\+\(\)]+$/;
     if (!whatsappRegex.test(waitlistWhatsapp)) {
-      alert('Por favor, insira um número de WhatsApp válido.');
+      showToast.warning('Por favor, insira um número de WhatsApp válido.');
       return;
     }
 
@@ -285,13 +301,13 @@ const PublicEvent: React.FC = () => {
         whatsapp: waitlistWhatsapp,
       });
 
-      alert('Você foi adicionado à lista de espera! Entraremos em contato caso surjam novas vagas.');
+      showToast.success('Você foi adicionado à lista de espera! Entraremos em contato caso surjam novas vagas.');
       setShowWaitlistModal(false);
       setWaitlistName('');
       setWaitlistWhatsapp('');
     } catch (error: any) {
       console.error('Erro ao entrar na lista de espera:', error);
-      alert(error?.message || 'Erro ao entrar na lista de espera. Tente novamente.');
+      showToast.error(error?.message || 'Erro ao entrar na lista de espera. Tente novamente.');
     }
   };
 
@@ -395,6 +411,53 @@ const PublicEvent: React.FC = () => {
                 </div>
               </section>
 
+              {/* Badge de Prazo de Confirmação */}
+              {event.confirmationDeadline && (
+                <section className="bg-surface-dark border border-border-dark rounded-lg p-4">
+                  {isPastDeadline ? (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-red-500 text-2xl">schedule</span>
+                      <div>
+                        <p className="text-red-400 font-bold">Prazo encerrado</p>
+                        <p className="text-gray-400 text-sm">
+                          {(() => {
+                            const deadlineDate = new Date(event.confirmationDeadline);
+                            const isEndOfDay = deadlineDate.getHours() === 23 && deadlineDate.getMinutes() === 59;
+                            
+                            if (isEndOfDay) {
+                              return `As confirmações foram encerradas em ${formatDate(event.confirmationDeadline)}`;
+                            } else {
+                              return `As confirmações foram encerradas em ${formatDate(event.confirmationDeadline)} às ${formatTime(event.confirmationDeadline)}`;
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-yellow-500 text-2xl">schedule</span>
+                      <div>
+                        <p className="text-yellow-400 font-bold">
+                          {(() => {
+                            const deadlineDate = new Date(event.confirmationDeadline);
+                            const isEndOfDay = deadlineDate.getHours() === 23 && deadlineDate.getMinutes() === 59;
+                            
+                            if (isEndOfDay) {
+                              return `Confirmações até: ${formatDate(event.confirmationDeadline)}`;
+                            } else {
+                              return `Confirmações até: ${formatDate(event.confirmationDeadline)} às ${formatTime(event.confirmationDeadline)}`;
+                            }
+                          })()}
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          Não perca o prazo para confirmar sua presença!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
               {/* RSVP Form */}
               <section className="bg-surface-dark border border-border-dark rounded-lg p-6">
                 <h2 className="text-2xl font-bold leading-tight tracking-tight px-4 pb-4 pt-2 text-white">
@@ -424,19 +487,22 @@ const PublicEvent: React.FC = () => {
                 <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-start">
                   <button 
                     onClick={() => handleRSVP('vou')}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-success text-white text-sm font-bold leading-normal tracking-[0.015em] transition-transform hover:scale-105"
+                    disabled={isPastDeadline}
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-success text-white text-sm font-bold leading-normal tracking-[0.015em] transition-transform ${isPastDeadline ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}`}
                   >
                     <span className="truncate">Vou</span>
                   </button>
                   <button 
                     onClick={() => handleRSVP('talvez')}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-gray-700 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-transform hover:scale-105 hover:bg-gray-600"
+                    disabled={isPastDeadline}
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-gray-700 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-transform ${isPastDeadline ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 hover:bg-gray-600'}`}
                   >
                     <span className="truncate">Talvez</span>
                   </button>
                   <button 
                     onClick={() => handleRSVP('nao_vou')}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-transparent text-gray-400 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-800 border border-gray-700"
+                    disabled={isPastDeadline}
+                    className={`flex min-w-[84px] max-w-[480px] items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-transparent text-gray-400 text-sm font-bold leading-normal tracking-[0.015em] border border-gray-700 ${isPastDeadline ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-800'}`}
                   >
                     <span className="truncate">Não vou</span>
                   </button>

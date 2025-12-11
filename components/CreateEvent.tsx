@@ -4,6 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { useOrganization, useUser } from '@clerk/clerk-react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
+import { showToast } from '../src/utils/toast';
 
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +30,8 @@ const CreateEvent: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [location, setLocation] = useState('');
   const [participantLimit, setParticipantLimit] = useState('');
+  const [confirmationDeadlineDate, setConfirmationDeadlineDate] = useState('');
+  const [confirmationDeadlineTime, setConfirmationDeadlineTime] = useState('');
   const [anonymousSuggestions, setAnonymousSuggestions] = useState(true);
   const [moderation, setModeration] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,6 +62,22 @@ const CreateEvent: React.FC = () => {
       setIsOnline(existingEvent.isOnline);
       setLocation(existingEvent.location || '');
       setParticipantLimit(existingEvent.participantLimit?.toString() || '');
+      
+      // Carregar prazo de confirmação se existir
+      if (existingEvent.confirmationDeadline) {
+        const deadlineDate = new Date(existingEvent.confirmationDeadline);
+        const dateStr = deadlineDate.toISOString().slice(0, 10); // YYYY-MM-DD
+        setConfirmationDeadlineDate(dateStr);
+        
+        // Verificar se tem hora específica (não é 23:59:59)
+        const hours = deadlineDate.getHours();
+        const minutes = deadlineDate.getMinutes();
+        if (hours !== 23 || minutes !== 59) {
+          const timeStr = deadlineDate.toTimeString().slice(0, 5); // HH:MM
+          setConfirmationDeadlineTime(timeStr);
+        }
+      }
+      
       setAnonymousSuggestions(existingEvent.allowAnonymousSuggestions);
       setModeration(existingEvent.moderateSuggestions);
     }
@@ -102,12 +121,12 @@ const CreateEvent: React.FC = () => {
   // Função para criar organização
   const handleCreateOrganization = async () => {
     if (!user) {
-      alert('Usuário não encontrado');
+      showToast.error('Usuário não encontrado');
       return;
     }
 
     if (!newOrgName.trim()) {
-      alert('Por favor, insira um nome para a organização');
+      showToast.warning('Por favor, insira um nome para a organização');
       return;
     }
 
@@ -119,7 +138,7 @@ const CreateEvent: React.FC = () => {
         clerkId: `org_${Date.now()}_${user.id}`, // Gerar um ID único
       });
 
-      alert('Organização criada com sucesso!');
+      showToast.success('Organização criada com sucesso!');
       setShowCreateOrgModal(false);
       setNewOrgName('');
       
@@ -129,7 +148,7 @@ const CreateEvent: React.FC = () => {
       }, 500);
     } catch (error) {
       console.error('Erro ao criar organização:', error);
-      alert('Erro ao criar organização. Verifique o console.');
+      showToast.error('Erro ao criar organização. Verifique o console.');
     } finally {
       setIsSyncing(false);
     }
@@ -138,7 +157,7 @@ const CreateEvent: React.FC = () => {
   // Função para forçar sincronização
   const handleForceSync = async () => {
     if (!user) {
-      alert('Usuário não encontrado');
+      showToast.error('Usuário não encontrado');
       return;
     }
 
@@ -161,14 +180,14 @@ const CreateEvent: React.FC = () => {
         });
       }
 
-      alert('Sincronização concluída! Recarregue a página se necessário.');
+      showToast.success('Sincronização concluída! Recarregue a página se necessário.');
       // Aguardar um pouco para as queries atualizarem
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error) {
       console.error('Erro ao sincronizar:', error);
-      alert('Erro ao sincronizar. Verifique o console.');
+      showToast.error('Erro ao sincronizar. Verifique o console.');
     } finally {
       setIsSyncing(false);
     }
@@ -176,7 +195,7 @@ const CreateEvent: React.FC = () => {
 
   const handleSubmit = async (status: 'rascunho' | 'publicado') => {
     if (!title || !dateTime) {
-      alert('Por favor, preencha o título e a data/hora do evento.');
+      showToast.warning('Por favor, preencha o título e a data/hora do evento.');
       return;
     }
 
@@ -186,12 +205,12 @@ const CreateEvent: React.FC = () => {
     if (!isEditing) {
       // Aguardar o carregamento das organizações
       if (userOrganizations === undefined) {
-        alert('Aguarde, carregando suas organizações...');
+        showToast.info('Aguarde, carregando suas organizações...');
         return;
       }
 
       if (!currentOrgId) {
-        alert('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
+        showToast.error('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
         return;
       }
     }
@@ -200,6 +219,29 @@ const CreateEvent: React.FC = () => {
 
     try {
       const timestamp = new Date(dateTime).getTime();
+      
+      // Converter prazo de confirmação
+      let confirmationDeadlineTimestamp: number | undefined = undefined;
+      if (confirmationDeadlineDate) {
+        let deadlineDateTime: Date;
+        
+        if (confirmationDeadlineTime) {
+          // Data + Hora específica
+          deadlineDateTime = new Date(`${confirmationDeadlineDate}T${confirmationDeadlineTime}:00`);
+        } else {
+          // Apenas data - usar final do dia (23:59:59)
+          deadlineDateTime = new Date(`${confirmationDeadlineDate}T23:59:59`);
+        }
+        
+        confirmationDeadlineTimestamp = deadlineDateTime.getTime();
+        
+        // Validar que deadline é antes do evento
+        if (confirmationDeadlineTimestamp >= timestamp) {
+          showToast.error('O prazo de confirmação deve ser antes do início do evento.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
       
       if (isEditing) {
         // Atualizar evento existente
@@ -211,12 +253,13 @@ const CreateEvent: React.FC = () => {
           isOnline,
           location: location || undefined,
           participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
+          confirmationDeadline: confirmationDeadlineTimestamp,
           allowAnonymousSuggestions: anonymousSuggestions,
           moderateSuggestions: moderation,
           status,
         });
         
-        alert('Evento atualizado com sucesso!');
+        showToast.success('Evento atualizado com sucesso!');
         navigate(`/manage/${existingEvent.shareLinkCode}`);
       } else {
         // Criar novo evento
@@ -228,17 +271,18 @@ const CreateEvent: React.FC = () => {
           isOnline,
           location: location || undefined,
           participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
+          confirmationDeadline: confirmationDeadlineTimestamp,
           allowAnonymousSuggestions: anonymousSuggestions,
           moderateSuggestions: moderation,
           status,
         });
 
-        alert('Evento criado com sucesso!');
+        showToast.success('Evento criado com sucesso!');
         navigate('/dashboard');
       }
     } catch (error) {
       console.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento:`, error);
-      alert(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento. Tente novamente.`);
+      showToast.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento. Tente novamente.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -376,7 +420,7 @@ const CreateEvent: React.FC = () => {
               <div className="flex flex-col gap-4 bg-surface-dark p-6 rounded-xl border border-border-dark">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3">Configurações de Engajamento</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="flex flex-col">
                       <p className="text-gray-300 text-base font-medium leading-normal pb-2">Limite de Participantes (opcional)</p>
                       <input 
@@ -386,6 +430,41 @@ const CreateEvent: React.FC = () => {
                         placeholder="ex: 100" 
                         type="number" 
                       />
+                    </label>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex flex-col">
+                      <p className="text-gray-300 text-base font-medium leading-normal pb-2">
+                        Prazo para Confirmação (opcional)
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-gray-400 text-sm mb-2">Data Limite</p>
+                          <input 
+                            value={confirmationDeadlineDate}
+                            onChange={(e) => setConfirmationDeadlineDate(e.target.value)}
+                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary/50 focus:border-primary border border-border-dark bg-[#1a2c20] h-14 placeholder:text-[#61896f] p-[15px] text-base font-normal leading-normal text-white" 
+                            type="date" 
+                            placeholder="DD/MM/YYYY"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm mb-2">Horário Limite (opcional)</p>
+                          <input 
+                            value={confirmationDeadlineTime}
+                            onChange={(e) => setConfirmationDeadlineTime(e.target.value)}
+                            disabled={!confirmationDeadlineDate}
+                            className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary/50 focus:border-primary border border-border-dark bg-[#1a2c20] h-14 placeholder:text-[#61896f] p-[15px] text-base font-normal leading-normal text-white disabled:opacity-50 disabled:cursor-not-allowed" 
+                            type="time" 
+                            placeholder="HH:MM"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Se não definir horário, confirmações serão permitidas até 23:59 do dia limite.
+                        <br />
+                        Exemplo: Data 12/12/2025 + Horário 14:00 = prazo até 12/12/2025 às 14:00
+                      </p>
                     </label>
                   </div>
                   <div className="flex flex-col justify-end">

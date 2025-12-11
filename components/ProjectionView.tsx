@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { showToast } from '../src/utils/toast';
 
 const ProjectionView: React.FC = () => {
   const navigate = useNavigate();
@@ -41,13 +42,13 @@ const ProjectionView: React.FC = () => {
   // Handlers
   const handleCreatePoll = async () => {
     if (!event || !pollQuestion.trim()) {
-      alert('Por favor, preencha a pergunta da enquete');
+      showToast.warning('Por favor, preencha a pergunta da enquete');
       return;
     }
 
     const validOptions = pollOptions.filter(opt => opt.trim() !== '');
     if (validOptions.length < 2) {
-      alert('A enquete precisa ter pelo menos 2 opções');
+      showToast.warning('A enquete precisa ter pelo menos 2 opções');
       return;
     }
 
@@ -69,7 +70,7 @@ const ProjectionView: React.FC = () => {
       setViewMode('Enquete');
     } catch (error) {
       console.error('Erro ao criar enquete:', error);
-      alert('Erro ao criar enquete. Tente novamente.');
+      showToast.error('Erro ao criar enquete. Tente novamente.');
     }
   };
 

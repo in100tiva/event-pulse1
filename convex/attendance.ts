@@ -73,7 +73,18 @@ export const confirmAttendance = mutation({
     console.log("[confirmAttendance] ✓ Evento encontrado:", event.title);
     console.log("[confirmAttendance] Limite de participantes:", event.participantLimit || "Sem limite");
 
-    // 2. Verificar se já existe confirmação para este email
+    // 2. Verificar prazo de confirmação
+    if (event.confirmationDeadline && Date.now() > event.confirmationDeadline) {
+      console.error("[confirmAttendance] ❌ Prazo de confirmação encerrado");
+      console.error("[confirmAttendance] Prazo era:", new Date(event.confirmationDeadline).toLocaleString('pt-BR'));
+      console.error("[confirmAttendance] Agora é:", new Date().toLocaleString('pt-BR'));
+      throw new ConvexError({
+        message: "PRAZO_ENCERRADO",
+        code: "PRAZO_ENCERRADO"
+      });
+    }
+
+    // 3. Verificar se já existe confirmação para este email
     const existing = await ctx.db
       .query("attendanceConfirmations")
       .withIndex("by_event_email", (q) =>
@@ -86,7 +97,7 @@ export const confirmAttendance = mutation({
       console.log("[confirmAttendance] Status atual:", existing.status);
     }
 
-    // 3. VERIFICAR LIMITE ANTES DE QUALQUER OPERAÇÃO (apenas para status "vou")
+    // 4. VERIFICAR LIMITE ANTES DE QUALQUER OPERAÇÃO (apenas para status "vou")
     if (args.status === "vou") {
       console.log("[confirmAttendance] Status desejado é 'vou', verificando disponibilidade...");
       
@@ -112,7 +123,7 @@ export const confirmAttendance = mutation({
       console.log("[confirmAttendance] ✓ Evento tem vagas disponíveis");
     }
 
-    // 4. Atualizar ou criar confirmação
+    // 5. Atualizar ou criar confirmação
     if (existing) {
       console.log("[confirmAttendance] Atualizando confirmação existente...");
       console.log("[confirmAttendance] Mudança de status:", existing.status, "→", args.status);

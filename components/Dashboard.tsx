@@ -4,6 +4,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { useUser, useOrganization, useClerk } from '@clerk/clerk-react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
+import { showToast } from '../src/utils/toast';
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const styles: Record<string, string> = {
@@ -111,12 +112,12 @@ const Dashboard: React.FC = () => {
 
   const handleCreateOrganization = async () => {
     if (!user) {
-      alert('Usuário não encontrado');
+      showToast.error('Usuário não encontrado');
       return;
     }
 
     if (!newOrgName.trim()) {
-      alert('Por favor, insira um nome para a organização');
+      showToast.warning('Por favor, insira um nome para a organização');
       return;
     }
 
@@ -127,7 +128,7 @@ const Dashboard: React.FC = () => {
         clerkId: `org_${Date.now()}_${user.id}`,
       });
 
-      alert('Organização criada com sucesso!');
+      showToast.success('Organização criada com sucesso!');
       setShowCreateOrgModal(false);
       setNewOrgName('');
       
@@ -136,7 +137,7 @@ const Dashboard: React.FC = () => {
       }, 500);
     } catch (error) {
       console.error('Erro ao criar organização:', error);
-      alert('Erro ao criar organização. Verifique o console.');
+      showToast.error('Erro ao criar organização. Verifique o console.');
     } finally {
       setIsCreatingOrg(false);
     }
@@ -429,7 +430,7 @@ const Dashboard: React.FC = () => {
                                   <button
                                     onClick={() => {
                                       navigator.clipboard.writeText(lead.whatsapp);
-                                      alert('WhatsApp copiado!');
+                                      showToast.success('WhatsApp copiado!');
                                     }}
                                     className="p-1 hover:bg-gray-700 rounded transition-colors"
                                     title="Copiar WhatsApp"

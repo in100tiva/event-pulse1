@@ -21,6 +21,7 @@ export const create = mutation({
     isOnline: v.boolean(),
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
+    confirmationDeadline: v.optional(v.number()),
     allowAnonymousSuggestions: v.boolean(),
     moderateSuggestions: v.boolean(),
     status: v.union(
@@ -56,6 +57,7 @@ export const update = mutation({
     isOnline: v.optional(v.boolean()),
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
+    confirmationDeadline: v.optional(v.number()),
     allowAnonymousSuggestions: v.optional(v.boolean()),
     moderateSuggestions: v.optional(v.boolean()),
     status: v.optional(

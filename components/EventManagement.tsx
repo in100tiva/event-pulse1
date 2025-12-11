@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
+import { showToast } from '../src/utils/toast';
 
 type TabType = 'confirmations' | 'suggestions' | 'polls';
 
@@ -57,7 +58,7 @@ const EventManagement: React.FC = () => {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Erro ao copiar link:', err);
-      alert('Erro ao copiar link. Tente novamente.');
+      showToast.error('Erro ao copiar link. Tente novamente.');
     }
   };
 
@@ -70,7 +71,7 @@ const EventManagement: React.FC = () => {
       });
     } catch (error) {
       console.error('Erro ao fazer check-in:', error);
-      alert('Erro ao fazer check-in. Tente novamente.');
+      showToast.error('Erro ao fazer check-in. Tente novamente.');
     }
   };
 
@@ -90,14 +91,14 @@ const EventManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      alert('Erro ao atualizar status. Tente novamente.');
+      showToast.error('Erro ao atualizar status. Tente novamente.');
     }
   };
 
   // Exportar CSV
   const handleExportCSV = () => {
     if (!attendanceList || attendanceList.length === 0) {
-      alert('Não há dados para exportar.');
+      showToast.warning('Não há dados para exportar.');
       return;
     }
 
