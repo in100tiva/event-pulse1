@@ -1,5 +1,5 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 
 // Função auxiliar para verificar se o evento está lotado
@@ -235,6 +235,170 @@ export const exportList = query({
       .query("attendanceConfirmations")
       .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
       .collect();
+  },
+});
+
+// Verificar status do check-in (se está aberto, fechado, etc)
+export const getCheckInStatus = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event || !event.requireCheckIn) {
+      return { enabled: false };
+    }
+
+    const now = Date.now();
+    const eventStart = event.startDateTime;
+    
+    // Calcular quando check-in abre e fecha
+    const windowHours = event.checkInWindowHours || 4;
+    const deadlineMinutes = event.checkInDeadlineMinutes || 30;
+    
+    const checkInOpens = eventStart - (windowHours * 60 * 60 * 1000);
+    const checkInCloses = eventStart - (deadlineMinutes * 60 * 1000);
+
+    const isOpen = now >= checkInOpens && now < checkInCloses;
+    const hasPassed = now >= checkInCloses;
+
+    return {
+      enabled: true,
+      isOpen,
+      hasPassed,
+      opensAt: checkInOpens,
+      closesAt: checkInCloses,
+      timeUntilOpen: isOpen ? 0 : Math.max(0, checkInOpens - now),
+      timeUntilClose: isOpen ? Math.max(0, checkInCloses - now) : 0,
+    };
+  },
+});
+
+// Check-in público (participante faz check-in na página do evento)
+export const publicCheckIn = mutation({
+  args: {
+    eventId: v.id("events"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // 1. Buscar evento
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Evento não encontrado");
+    
+    // 2. Verificar se check-in está habilitado
+    if (!event.requireCheckIn) {
+      throw new Error("Check-in não é necessário para este evento");
+    }
+
+    // 3. Verificar se está no período de check-in
+    const now = Date.now();
+    const windowHours = event.checkInWindowHours || 4;
+    const deadlineMinutes = event.checkInDeadlineMinutes || 30;
+    
+    const checkInOpens = event.startDateTime - (windowHours * 60 * 60 * 1000);
+    const checkInCloses = event.startDateTime - (deadlineMinutes * 60 * 1000);
+
+    const isOpen = now >= checkInOpens && now < checkInCloses;
+    const hasPassed = now >= checkInCloses;
+    
+    if (!isOpen) {
+      throw new ConvexError({
+        message: hasPassed ? "CHECKIN_ENCERRADO" : "CHECKIN_NAO_ABERTO",
+        code: hasPassed ? "CHECKIN_ENCERRADO" : "CHECKIN_NAO_ABERTO"
+      });
+    }
+
+    // 4. Buscar confirmação de presença
+    const confirmation = await ctx.db
+      .query("attendanceConfirmations")
+      .withIndex("by_event_email", (q) =>
+        q.eq("eventId", args.eventId).eq("email", args.email)
+      )
+      .first();
+
+    if (!confirmation || confirmation.status !== "vou") {
+      throw new Error("Você precisa confirmar presença antes de fazer check-in");
+    }
+
+    // 5. Fazer check-in
+    await ctx.db.patch(confirmation._id, {
+      checkedIn: true,
+      checkInTime: Date.now(),
+      noShow: false,
+    });
+
+    return { success: true };
+  },
+});
+
+// Liberar vagas automaticamente (scheduled function)
+export const releaseNoShowSlots = internalMutation({
+  handler: async (ctx) => {
+    const now = Date.now();
+    
+    // Buscar eventos com check-in obrigatório
+    const events = await ctx.db.query("events").collect();
+    const eventsWithCheckIn = events.filter(e => e.requireCheckIn);
+
+    for (const event of eventsWithCheckIn) {
+      // Verificar se deadline de check-in passou
+      const deadlineMinutes = event.checkInDeadlineMinutes || 30;
+      const checkInDeadline = event.startDateTime - (deadlineMinutes * 60 * 1000);
+      
+      if (now < checkInDeadline) continue; // Check-in ainda aberto
+      if (event.status === "encerrado") continue; // Evento já acabou
+
+      // Buscar confirmados que NÃO fizeram check-in
+      const confirmations = await ctx.db
+        .query("attendanceConfirmations")
+        .withIndex("by_event", (q) => q.eq("eventId", event._id))
+        .collect();
+
+      const noShows = confirmations.filter(
+        c => c.status === "vou" && !c.checkedIn
+      );
+
+      // Marcar como no-show e mudar status para "nao_vou"
+      for (const noShow of noShows) {
+        await ctx.db.patch(noShow._id, {
+          status: "nao_vou",
+          noShow: true,
+        });
+      }
+
+      if (noShows.length > 0) {
+        console.log(`[releaseNoShowSlots] Liberadas ${noShows.length} vagas do evento: ${event.title}`);
+      }
+    }
+  },
+});
+
+// Liberar vagas manualmente (botão no dashboard)
+export const manualReleaseNoShowSlots = mutation({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Não autenticado");
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Evento não encontrado");
+
+    // Buscar confirmados que NÃO fizeram check-in
+    const confirmations = await ctx.db
+      .query("attendanceConfirmations")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    const noShows = confirmations.filter(
+      c => c.status === "vou" && !c.checkedIn
+    );
+
+    for (const noShow of noShows) {
+      await ctx.db.patch(noShow._id, {
+        status: "nao_vou",
+        noShow: true,
+      });
+    }
+
+    return { releasedCount: noShows.length };
   },
 });
 

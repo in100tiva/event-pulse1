@@ -9,6 +9,7 @@
  */
 
 import type * as attendance from "../attendance.js";
+import type * as crons from "../crons.js";
 import type * as events from "../events.js";
 import type * as polls from "../polls.js";
 import type * as suggestions from "../suggestions.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   attendance: typeof attendance;
+  crons: typeof crons;
   events: typeof events;
   polls: typeof polls;
   suggestions: typeof suggestions;

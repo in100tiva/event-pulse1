@@ -22,6 +22,9 @@ export const create = mutation({
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
     confirmationDeadline: v.optional(v.number()),
+    requireCheckIn: v.boolean(),
+    checkInWindowHours: v.optional(v.number()),
+    checkInDeadlineMinutes: v.optional(v.number()),
     allowAnonymousSuggestions: v.boolean(),
     moderateSuggestions: v.boolean(),
     status: v.union(
@@ -58,6 +61,9 @@ export const update = mutation({
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
     confirmationDeadline: v.optional(v.number()),
+    requireCheckIn: v.optional(v.boolean()),
+    checkInWindowHours: v.optional(v.number()),
+    checkInDeadlineMinutes: v.optional(v.number()),
     allowAnonymousSuggestions: v.optional(v.boolean()),
     moderateSuggestions: v.optional(v.boolean()),
     status: v.optional(

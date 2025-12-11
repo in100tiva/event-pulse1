@@ -34,6 +34,9 @@ export default defineSchema({
     location: v.optional(v.string()),
     participantLimit: v.optional(v.number()),
     confirmationDeadline: v.optional(v.number()),
+    requireCheckIn: v.boolean(),
+    checkInWindowHours: v.optional(v.number()),
+    checkInDeadlineMinutes: v.optional(v.number()),
     allowAnonymousSuggestions: v.boolean(),
     moderateSuggestions: v.boolean(),
     status: v.union(
@@ -54,6 +57,8 @@ export default defineSchema({
     email: v.string(),
     status: v.union(v.literal("vou"), v.literal("talvez"), v.literal("nao_vou")),
     checkedIn: v.boolean(),
+    checkInTime: v.optional(v.number()),
+    noShow: v.optional(v.boolean()),
   })
     .index("by_event", ["eventId"])
     .index("by_event_email", ["eventId", "email"]),

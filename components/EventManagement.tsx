@@ -29,6 +29,11 @@ const EventManagement: React.FC = () => {
     event ? { eventId: event._id } : 'skip'
   );
 
+  const checkInStatus = useQuery(
+    api.attendance.getCheckInStatus,
+    event ? { eventId: event._id } : 'skip'
+  );
+
   const suggestions = useQuery(
     api.suggestions.getByEvent,
     event ? { eventId: event._id } : 'skip'
@@ -45,6 +50,7 @@ const EventManagement: React.FC = () => {
   const updateSuggestionStatus = useMutation(api.suggestions.updateStatus);
   const markSuggestionAnswered = useMutation(api.suggestions.markAsAnswered);
   const togglePollActive = useMutation(api.polls.toggleActive);
+  const manualRelease = useMutation(api.attendance.manualReleaseNoShowSlots);
 
   // Copiar link do evento
   const handleCopyLink = async () => {
@@ -93,6 +99,28 @@ const EventManagement: React.FC = () => {
       console.error('Erro ao atualizar status:', error);
       showToast.error('Não foi possível atualizar status');
     }
+  };
+
+  // Liberar vagas manualmente
+  const handleManualRelease = async () => {
+    if (!event) return;
+    try {
+      const result = await manualRelease({ eventId: event._id });
+      showToast.success(`${result.releasedCount} vagas liberadas`);
+    } catch (error) {
+      showToast.error('Erro ao liberar vagas');
+    }
+  };
+
+  // Formatar tempo
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Exportar CSV
@@ -243,6 +271,47 @@ const EventManagement: React.FC = () => {
               {/* Tab Content: Confirmações */}
               {activeTab === 'confirmations' && (
                 <>
+                  {/* Card de Check-in */}
+                  {event?.requireCheckIn && checkInStatus?.enabled && (
+                    <div className="mx-4 mt-4 mb-6 p-4 bg-surface-dark border border-border-dark rounded-lg">
+                      <h3 className="text-lg font-bold text-white mb-3">Status do Check-in</h3>
+                      
+                      {!checkInStatus.isOpen && !checkInStatus.hasPassed && (
+                        <p className="text-yellow-400">
+                          Check-in abre em: {formatTime(checkInStatus.opensAt)}
+                        </p>
+                      )}
+                      
+                      {checkInStatus.isOpen && (
+                        <div>
+                          <p className="text-green-400 font-bold">CHECK-IN ABERTO</p>
+                          <p className="text-gray-400 text-sm">Fecha em: {formatTime(checkInStatus.closesAt)}</p>
+                        </div>
+                      )}
+                      
+                      {checkInStatus.hasPassed && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-red-400">Check-in encerrado</p>
+                          <button
+                            onClick={handleManualRelease}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                          >
+                            Liberar Vagas de No-Shows
+                          </button>
+                        </div>
+                      )}
+                      
+                      <div className="mt-3 flex gap-4 text-sm">
+                        <span className="text-gray-300">
+                          Check-in: {stats?.checkedIn || 0} / {stats?.confirmed || 0}
+                        </span>
+                        <span className="text-gray-300">
+                          No-shows: {(stats?.confirmed || 0) - (stats?.checkedIn || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Stats Cards */}
                   <div className="flex flex-wrap gap-4 p-4">
                     <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">

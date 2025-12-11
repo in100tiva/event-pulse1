@@ -12,6 +12,7 @@ const PublicEvent: React.FC = () => {
   const createSuggestion = useMutation(api.suggestions.create);
   const voteSuggestion = useMutation(api.suggestions.vote);
   const votePoll = useMutation(api.polls.vote);
+  const doCheckIn = useMutation(api.attendance.publicCheckIn);
   // @ts-ignore - waitlist module will be available after Convex regenerates types
   const addToWaitlist = useMutation((api as any).waitlist?.addToWaitlist);
   
@@ -27,6 +28,10 @@ const PublicEvent: React.FC = () => {
     api.attendance.getStats,
     event ? { eventId: event._id } : 'skip'
   );
+  const checkInStatus = useQuery(
+    api.attendance.getCheckInStatus,
+    event ? { eventId: event._id } : 'skip'
+  );
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -38,6 +43,7 @@ const PublicEvent: React.FC = () => {
   const [waitlistName, setWaitlistName] = useState('');
   const [waitlistWhatsapp, setWaitlistWhatsapp] = useState('');
   const [hasConfirmed, setHasConfirmed] = useState(false);
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
   
   // Verificar se usuário confirmou presença
@@ -46,12 +52,28 @@ const PublicEvent: React.FC = () => {
     event && email ? { eventId: event._id, email } : 'skip'
   );
 
+  // Buscar confirmação existente para verificar check-in
+  const existingConfirmation = useQuery(
+    api.attendance.getByEvent,
+    event ? { eventId: event._id } : 'skip'
+  );
+
   // Atualizar status de confirmação quando userConfirmation mudar
   useEffect(() => {
     if (userConfirmation !== undefined) {
       setHasConfirmed(userConfirmation);
     }
   }, [userConfirmation]);
+
+  // Verificar se já fez check-in
+  useEffect(() => {
+    if (existingConfirmation && email) {
+      const myConfirmation = existingConfirmation.find(c => c.email === email);
+      if (myConfirmation?.checkedIn) {
+        setHasCheckedIn(true);
+      }
+    }
+  }, [existingConfirmation, email]);
 
   // Verificar se o prazo de confirmação expirou
   const isPastDeadline = event?.confirmationDeadline && Date.now() > event.confirmationDeadline;
@@ -322,6 +344,26 @@ const PublicEvent: React.FC = () => {
     }
   };
 
+  const handleCheckIn = async () => {
+    if (!event || !email) return;
+
+    try {
+      await doCheckIn({ eventId: event._id, email });
+      setHasCheckedIn(true);
+      showToast.success('Check-in realizado!');
+    } catch (error: any) {
+      const errorMsg = error?.data?.message || error?.message || '';
+      
+      if (errorMsg.includes('CHECKIN_ENCERRADO')) {
+        showToast.error('Prazo de check-in encerrado');
+      } else if (errorMsg.includes('CHECKIN_NAO_ABERTO')) {
+        showToast.warning('Check-in ainda não abriu');
+      } else {
+        showToast.error('Não foi possível fazer check-in');
+      }
+    }
+  };
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('pt-BR', {
       day: 'numeric',
@@ -462,6 +504,73 @@ const PublicEvent: React.FC = () => {
                         </p>
                         <p className="text-gray-400 text-sm">
                           Não perca o prazo para confirmar sua presença!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Card de Check-in */}
+              {event.requireCheckIn && checkInStatus?.enabled && hasConfirmed && (
+                <section className="bg-surface-dark border border-border-dark rounded-lg p-4">
+                  {/* Check-in ainda não aberto */}
+                  {!checkInStatus.isOpen && !checkInStatus.hasPassed && (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-blue-500 text-2xl">schedule</span>
+                      <div>
+                        <p className="text-blue-400 font-bold">Check-in abre em breve</p>
+                        <p className="text-gray-400 text-sm">
+                          O check-in estará disponível {Math.floor(checkInStatus.timeUntilOpen / (1000 * 60 * 60))}h antes do evento
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Check-in aberto */}
+                  {checkInStatus.isOpen && !hasCheckedIn && (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-red-500 text-2xl animate-pulse">
+                          notifications_active
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-red-400 font-bold">CHECK-IN OBRIGATÓRIO</p>
+                          <p className="text-gray-400 text-sm">
+                            Faça check-in até {formatTime(checkInStatus.closesAt)} ou perderá sua vaga
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleCheckIn}
+                        className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+                      >
+                        ✅ Fazer Check-in Agora
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Check-in realizado */}
+                  {hasCheckedIn && (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                      <div>
+                        <p className="text-green-400 font-bold">Check-in Confirmado</p>
+                        <p className="text-gray-400 text-sm">
+                          Nos vemos no evento!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Check-in encerrado sem fazer */}
+                  {checkInStatus.hasPassed && !hasCheckedIn && (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-red-500 text-2xl">cancel</span>
+                      <div>
+                        <p className="text-red-400 font-bold">Vaga Liberada</p>
+                        <p className="text-gray-400 text-sm">
+                          Sua vaga foi liberada por falta de check-in
                         </p>
                       </div>
                     </div>

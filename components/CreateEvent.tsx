@@ -34,6 +34,9 @@ const CreateEvent: React.FC = () => {
   const [confirmationDeadlineTime, setConfirmationDeadlineTime] = useState('');
   const [anonymousSuggestions, setAnonymousSuggestions] = useState(true);
   const [moderation, setModeration] = useState(false);
+  const [requireCheckIn, setRequireCheckIn] = useState(false);
+  const [checkInWindowHours, setCheckInWindowHours] = useState('4');
+  const [checkInDeadlineMinutes, setCheckInDeadlineMinutes] = useState('30');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
@@ -80,6 +83,13 @@ const CreateEvent: React.FC = () => {
       
       setAnonymousSuggestions(existingEvent.allowAnonymousSuggestions);
       setModeration(existingEvent.moderateSuggestions);
+      
+      // Carregar configurações de check-in se existir
+      if (existingEvent.requireCheckIn) {
+        setRequireCheckIn(true);
+        setCheckInWindowHours(String(existingEvent.checkInWindowHours || 4));
+        setCheckInDeadlineMinutes(String(existingEvent.checkInDeadlineMinutes || 30));
+      }
     }
   }, [existingEvent]);
 
@@ -254,6 +264,9 @@ const CreateEvent: React.FC = () => {
           location: location || undefined,
           participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
           confirmationDeadline: confirmationDeadlineTimestamp,
+          requireCheckIn,
+          checkInWindowHours: requireCheckIn ? parseInt(checkInWindowHours) : undefined,
+          checkInDeadlineMinutes: requireCheckIn ? parseInt(checkInDeadlineMinutes) : undefined,
           allowAnonymousSuggestions: anonymousSuggestions,
           moderateSuggestions: moderation,
           status,
@@ -272,6 +285,9 @@ const CreateEvent: React.FC = () => {
           location: location || undefined,
           participantLimit: participantLimit ? parseInt(participantLimit) : undefined,
           confirmationDeadline: confirmationDeadlineTimestamp,
+          requireCheckIn,
+          checkInWindowHours: requireCheckIn ? parseInt(checkInWindowHours) : undefined,
+          checkInDeadlineMinutes: requireCheckIn ? parseInt(checkInDeadlineMinutes) : undefined,
           allowAnonymousSuggestions: anonymousSuggestions,
           moderateSuggestions: moderation,
           status,
@@ -467,6 +483,51 @@ const CreateEvent: React.FC = () => {
                       </p>
                     </label>
                   </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={requireCheckIn}
+                        onChange={(e) => setRequireCheckIn(e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <div>
+                        <p className="text-white font-medium">Exigir Check-in Pré-Evento</p>
+                        <p className="text-gray-400 text-sm">
+                          Participantes devem fazer check-in antes do evento para garantir vaga
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                  {requireCheckIn && (
+                    <div className="md:col-span-2 grid grid-cols-2 gap-4 ml-8 p-4 bg-[#0d1912] rounded-lg border border-border-dark">
+                      <div>
+                        <label className="text-gray-300 text-sm">Check-in abre (horas antes)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="24"
+                          value={checkInWindowHours}
+                          onChange={(e) => setCheckInWindowHours(e.target.value)}
+                          className="w-full mt-2 rounded-lg bg-[#1a2c20] border border-border-dark text-white p-3"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-gray-300 text-sm">Check-in fecha (minutos antes)</label>
+                        <input
+                          type="number"
+                          min="5"
+                          max="120"
+                          value={checkInDeadlineMinutes}
+                          onChange={(e) => setCheckInDeadlineMinutes(e.target.value)}
+                          className="w-full mt-2 rounded-lg bg-[#1a2c20] border border-border-dark text-white p-3"
+                        />
+                      </div>
+                      <p className="col-span-2 text-xs text-gray-400">
+                        Exemplo: Check-in abre 4h antes e fecha 30min antes do evento iniciar
+                      </p>
+                    </div>
+                  )}
                   <div className="flex flex-col justify-end">
                     <div className="flex items-center justify-between rounded-lg bg-black/20 p-2 h-14 border border-border-dark">
                       <span className="text-gray-300 font-medium ml-2">Permitir sugestões anônimas</span>
