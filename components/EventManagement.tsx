@@ -147,6 +147,30 @@ const EventManagement: React.FC = () => {
     link.click();
   };
 
+  // Enviar email para confirmados
+  const handleSendEmail = () => {
+    if (!attendanceList || attendanceList.length === 0) {
+      showToast.warning('Não há participantes confirmados');
+      return;
+    }
+
+    // Filtrar apenas confirmados com email válido
+    const confirmedEmails = attendanceList
+      .filter(a => a.status === 'vou' && a.email)
+      .map(a => a.email)
+      .join(',');
+
+    if (!confirmedEmails) {
+      showToast.warning('Nenhum email encontrado nos confirmados');
+      return;
+    }
+
+    // Abrir Gmail em nova aba com os emails pré-preenchidos
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(confirmedEmails)}&su=${encodeURIComponent(`Evento: ${event?.title || 'Informações'}`)}`;
+    window.open(gmailUrl, '_blank');
+    showToast.success('Gmail aberto com os emails dos confirmados');
+  };
+
   // Loading state
   if (!event) {
     return (
@@ -341,6 +365,13 @@ const EventManagement: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex justify-end gap-2 px-4 py-3">
+                    <button 
+                      onClick={handleSendEmail}
+                      className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">mail</span>
+                      <span className="truncate">Enviar Email</span>
+                    </button>
                     <button 
                       onClick={handleExportCSV}
                       className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-surface-dark text-white text-sm font-bold leading-normal tracking-[0.015em] border border-border-dark hover:bg-gray-800 transition-colors"
