@@ -58,7 +58,7 @@ const EventManagement: React.FC = () => {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Erro ao copiar link:', err);
-      showToast.error('Erro ao copiar link. Tente novamente.');
+      showToast.error('Não foi possível copiar link');
     }
   };
 
@@ -71,7 +71,7 @@ const EventManagement: React.FC = () => {
       });
     } catch (error) {
       console.error('Erro ao fazer check-in:', error);
-      showToast.error('Erro ao fazer check-in. Tente novamente.');
+      showToast.error('Não foi possível fazer check-in');
     }
   };
 
@@ -91,7 +91,7 @@ const EventManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      showToast.error('Erro ao atualizar status. Tente novamente.');
+      showToast.error('Não foi possível atualizar status');
     }
   };
 

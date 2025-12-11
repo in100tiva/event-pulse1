@@ -117,7 +117,7 @@ const Dashboard: React.FC = () => {
     }
 
     if (!newOrgName.trim()) {
-      showToast.warning('Por favor, insira um nome para a organização');
+      showToast.warning('Insira um nome para a organização');
       return;
     }
 
@@ -128,7 +128,7 @@ const Dashboard: React.FC = () => {
         clerkId: `org_${Date.now()}_${user.id}`,
       });
 
-      showToast.success('Organização criada com sucesso!');
+      showToast.success('Organização criada!');
       setShowCreateOrgModal(false);
       setNewOrgName('');
       
@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
       }, 500);
     } catch (error) {
       console.error('Erro ao criar organização:', error);
-      showToast.error('Erro ao criar organização. Verifique o console.');
+      showToast.error('Não foi possível criar organização');
     } finally {
       setIsCreatingOrg(false);
     }

@@ -126,7 +126,7 @@ const CreateEvent: React.FC = () => {
     }
 
     if (!newOrgName.trim()) {
-      showToast.warning('Por favor, insira um nome para a organização');
+      showToast.warning('Insira um nome para a organização');
       return;
     }
 
@@ -138,7 +138,7 @@ const CreateEvent: React.FC = () => {
         clerkId: `org_${Date.now()}_${user.id}`, // Gerar um ID único
       });
 
-      showToast.success('Organização criada com sucesso!');
+      showToast.success('Organização criada!');
       setShowCreateOrgModal(false);
       setNewOrgName('');
       
@@ -148,7 +148,7 @@ const CreateEvent: React.FC = () => {
       }, 500);
     } catch (error) {
       console.error('Erro ao criar organização:', error);
-      showToast.error('Erro ao criar organização. Verifique o console.');
+      showToast.error('Não foi possível criar organização');
     } finally {
       setIsSyncing(false);
     }
@@ -180,14 +180,14 @@ const CreateEvent: React.FC = () => {
         });
       }
 
-      showToast.success('Sincronização concluída! Recarregue a página se necessário.');
+      showToast.success('Sincronização concluída!');
       // Aguardar um pouco para as queries atualizarem
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error) {
       console.error('Erro ao sincronizar:', error);
-      showToast.error('Erro ao sincronizar. Verifique o console.');
+      showToast.error('Não foi possível sincronizar');
     } finally {
       setIsSyncing(false);
     }
@@ -195,7 +195,7 @@ const CreateEvent: React.FC = () => {
 
   const handleSubmit = async (status: 'rascunho' | 'publicado') => {
     if (!title || !dateTime) {
-      showToast.warning('Por favor, preencha o título e a data/hora do evento.');
+      showToast.warning('Preencha título e data do evento');
       return;
     }
 
@@ -205,12 +205,12 @@ const CreateEvent: React.FC = () => {
     if (!isEditing) {
       // Aguardar o carregamento das organizações
       if (userOrganizations === undefined) {
-        showToast.info('Aguarde, carregando suas organizações...');
+        showToast.info('Carregando organizações...');
         return;
       }
 
       if (!currentOrgId) {
-        showToast.error('Você precisa estar em uma organização para criar eventos. Por favor, entre em contato com o administrador.');
+        showToast.error('Você precisa estar em uma organização');
         return;
       }
     }
@@ -237,7 +237,7 @@ const CreateEvent: React.FC = () => {
         
         // Validar que deadline é antes do evento
         if (confirmationDeadlineTimestamp >= timestamp) {
-          showToast.error('O prazo de confirmação deve ser antes do início do evento.');
+          showToast.error('Prazo deve ser antes do evento');
           setIsSubmitting(false);
           return;
         }
@@ -259,7 +259,7 @@ const CreateEvent: React.FC = () => {
           status,
         });
         
-        showToast.success('Evento atualizado com sucesso!');
+        showToast.success('Evento atualizado!');
         navigate(`/manage/${existingEvent.shareLinkCode}`);
       } else {
         // Criar novo evento
@@ -277,12 +277,12 @@ const CreateEvent: React.FC = () => {
           status,
         });
 
-        showToast.success('Evento criado com sucesso!');
+        showToast.success('Evento criado!');
         navigate('/dashboard');
       }
     } catch (error) {
       console.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento:`, error);
-      showToast.error(`Erro ao ${isEditing ? 'atualizar' : 'criar'} evento. Tente novamente.`);
+      showToast.error(`Não foi possível ${isEditing ? 'atualizar' : 'criar'} evento`);
     } finally {
       setIsSubmitting(false);
     }

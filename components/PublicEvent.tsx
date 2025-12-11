@@ -94,7 +94,7 @@ const PublicEvent: React.FC = () => {
     console.log('[PublicEvent] Limite do evento:', event?.participantLimit);
     
     if (!event || !name || !email) {
-      showToast.warning('Por favor, preencha seu nome e email.');
+      showToast.warning('Preencha seu nome e email');
       return;
     }
 
@@ -123,13 +123,13 @@ const PublicEvent: React.FC = () => {
       
       // Mensagem diferente se já estava confirmado
       if (wasAlreadyConfirmed) {
-        showToast.info('Você já confirmou presença neste evento!');
+        showToast.info('Presença já confirmada');
       } else if (status === 'vou') {
-        showToast.success('Confirmação registrada com sucesso!');
+        showToast.success('Presença confirmada!');
       } else if (status === 'talvez') {
-        showToast.info('Status atualizado para "Talvez"');
+        showToast.info('Marcado como "Talvez"');
       } else {
-        showToast.info('Status atualizado para "Não vou"');
+        showToast.info('Marcado como "Não vou"');
       }
     } catch (error: any) {
       console.error('[PublicEvent] ERRO ao confirmar presença:', error);
@@ -156,7 +156,7 @@ const PublicEvent: React.FC = () => {
       
       if (isPrazoEncerrado) {
         console.log('[PublicEvent] Prazo de confirmação encerrado');
-        showToast.error('O prazo para confirmação de presença já encerrou.');
+        showToast.error('Prazo de confirmação encerrado');
         return;
       }
       
@@ -174,20 +174,20 @@ const PublicEvent: React.FC = () => {
         setWaitlistWhatsapp('');
         setShowWaitlistModal(true);
       } else {
-        console.log('[PublicEvent] Mostrando alerta de erro genérico');
-        showToast.error(`Erro ao confirmar presença: ${errorMessage || 'Tente novamente.'}`);
+        console.log('[PublicEvent] Mostrando erro genérico');
+        showToast.error('Não foi possível confirmar presença');
       }
     }
   };
 
   const handleSubmitSuggestion = async () => {
     if (!hasConfirmed) {
-      showToast.warning('Você precisa confirmar sua presença no evento para enviar sugestões.');
+      showToast.warning('Confirme presença para enviar sugestões');
       return;
     }
     
     if (!event || !suggestionText.trim()) {
-      showToast.warning('Por favor, escreva sua sugestão.');
+      showToast.warning('Escreva sua sugestão');
       return;
     }
 
@@ -199,16 +199,16 @@ const PublicEvent: React.FC = () => {
         isAnonymous,
       });
       setSuggestionText('');
-      showToast.success('Sugestão enviada com sucesso!');
+      showToast.success('Sugestão enviada!');
     } catch (error) {
       console.error('Erro ao enviar sugestão:', error);
-      showToast.error('Erro ao enviar sugestão. Tente novamente.');
+      showToast.error('Não foi possível enviar sugestão');
     }
   };
 
   const handleVoteSuggestion = async (suggestionId: Id<'suggestions'>) => {
     if (!hasConfirmed) {
-      showToast.warning('Você precisa confirmar sua presença no evento para votar em sugestões.');
+      showToast.warning('Confirme presença para votar');
       return;
     }
     
@@ -218,7 +218,7 @@ const PublicEvent: React.FC = () => {
     
     // Verificar se já votou nesta sugestão
     if (votedSuggestions.has(suggestionIdStr)) {
-      showToast.info('Você já votou nesta sugestão!');
+      showToast.info('Você já votou nesta sugestão');
       return;
     }
 
@@ -240,13 +240,13 @@ const PublicEvent: React.FC = () => {
       }
     } catch (error) {
       console.error('Erro ao votar:', error);
-      showToast.error('Erro ao votar. Tente novamente.');
+      showToast.error('Não foi possível votar');
     }
   };
 
   const handleVotePoll = async (optionId: Id<'pollOptions'>) => {
     if (!hasConfirmed) {
-      showToast.warning('Você precisa confirmar sua presença no evento para votar em enquetes.');
+      showToast.warning('Confirme presença para votar');
       return;
     }
     
@@ -255,7 +255,7 @@ const PublicEvent: React.FC = () => {
     // Verificar se já votou nesta enquete
     const pollIdStr = activePoll._id.toString();
     if (votedPolls.has(pollIdStr)) {
-      showToast.info('Você já votou nesta enquete!');
+      showToast.info('Você já votou nesta enquete');
       return;
     }
 
@@ -274,23 +274,23 @@ const PublicEvent: React.FC = () => {
       const votedPollsKey = `eventpulse_voted_polls_${code}`;
       localStorage.setItem(votedPollsKey, JSON.stringify(Array.from(newVotedPolls)));
       
-      showToast.success('Voto registrado com sucesso!');
+      showToast.success('Voto registrado!');
     } catch (error) {
       console.error('Erro ao votar:', error);
-      showToast.error('Erro ao votar. Tente novamente.');
+      showToast.error('Não foi possível votar');
     }
   };
 
   const handleJoinWaitlist = async () => {
     if (!event || !waitlistName.trim() || !waitlistWhatsapp.trim()) {
-      showToast.warning('Por favor, preencha seu nome e WhatsApp.');
+      showToast.warning('Preencha seu nome e WhatsApp');
       return;
     }
 
     // Validar formato básico do WhatsApp
     const whatsappRegex = /^[\d\s\-\+\(\)]+$/;
     if (!whatsappRegex.test(waitlistWhatsapp)) {
-      showToast.warning('Por favor, insira um número de WhatsApp válido.');
+      showToast.warning('Número de WhatsApp inválido');
       return;
     }
 
@@ -301,13 +301,24 @@ const PublicEvent: React.FC = () => {
         whatsapp: waitlistWhatsapp,
       });
 
-      showToast.success('Você foi adicionado à lista de espera! Entraremos em contato caso surjam novas vagas.');
+      showToast.success('Você entrou na lista de espera!');
       setShowWaitlistModal(false);
       setWaitlistName('');
       setWaitlistWhatsapp('');
     } catch (error: any) {
       console.error('Erro ao entrar na lista de espera:', error);
-      showToast.error(error?.message || 'Erro ao entrar na lista de espera. Tente novamente.');
+      
+      // Extrair mensagem limpa do erro
+      const errorMsg = error?.data?.message || error?.message || '';
+      
+      // Verificar se já está na lista
+      if (errorMsg.includes('já está na lista de espera') || errorMsg.includes('already in waitlist')) {
+        showToast.info('Você já está na lista de espera');
+        setShowWaitlistModal(false);
+        return;
+      }
+      
+      showToast.error('Não foi possível entrar na lista de espera');
     }
   };
 

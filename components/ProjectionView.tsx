@@ -42,13 +42,13 @@ const ProjectionView: React.FC = () => {
   // Handlers
   const handleCreatePoll = async () => {
     if (!event || !pollQuestion.trim()) {
-      showToast.warning('Por favor, preencha a pergunta da enquete');
+      showToast.warning('Preencha a pergunta da enquete');
       return;
     }
 
     const validOptions = pollOptions.filter(opt => opt.trim() !== '');
     if (validOptions.length < 2) {
-      showToast.warning('A enquete precisa ter pelo menos 2 opções');
+      showToast.warning('Adicione pelo menos 2 opções');
       return;
     }
 
@@ -70,7 +70,7 @@ const ProjectionView: React.FC = () => {
       setViewMode('Enquete');
     } catch (error) {
       console.error('Erro ao criar enquete:', error);
-      showToast.error('Erro ao criar enquete. Tente novamente.');
+      showToast.error('Não foi possível criar enquete');
     }
   };
 
