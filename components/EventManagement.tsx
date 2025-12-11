@@ -4,8 +4,9 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
 import { showToast } from '../src/utils/toast';
+import EventStats from './EventStats';
 
-type TabType = 'confirmations' | 'suggestions' | 'polls';
+type TabType = 'confirmations' | 'suggestions' | 'polls' | 'statistics';
 
 const EventManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -265,6 +266,16 @@ const EventManagement: React.FC = () => {
                   >
                     <p className="text-sm font-bold leading-normal tracking-[0.015em]">Enquetes ({polls?.length || 0})</p>
                   </button>
+                  <button 
+                    onClick={() => setActiveTab('statistics')}
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                      activeTab === 'statistics' 
+                        ? 'border-b-primary text-primary' 
+                        : 'border-b-transparent text-text-secondary-dark hover:text-white'
+                    }`}
+                  >
+                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">📊 Estatísticas</p>
+                  </button>
                 </div>
               </div>
 
@@ -503,6 +514,11 @@ const EventManagement: React.FC = () => {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Tab Content: Estatísticas */}
+              {activeTab === 'statistics' && event && (
+                <EventStats eventId={event._id} />
               )}
             </div>
           </div>

@@ -188,3 +188,123 @@ export const updateStatus = mutation({
     return args.id;
   },
 });
+
+// Obter estatísticas completas do evento
+export const getEventStats = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Não autenticado");
+    }
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Evento não encontrado");
+    }
+
+    // Estatísticas de participação
+    const confirmations = await ctx.db
+      .query("attendanceConfirmations")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    const confirmed = confirmations.filter((c) => c.status === "vou").length;
+    const checkedIn = confirmations.filter((c) => c.checkedIn).length;
+    const noShows = confirmations.filter((c) => c.status === "vou" && !c.checkedIn).length;
+    
+    const attendanceRate = confirmed > 0 
+      ? Math.round((checkedIn / confirmed) * 100) 
+      : 0;
+
+    const occupancyRate = event.participantLimit 
+      ? Math.round((confirmed / event.participantLimit) * 100)
+      : 0;
+
+    // Estatísticas de sugestões
+    const suggestions = await ctx.db
+      .query("suggestions")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    const approvedSuggestions = suggestions.filter((s) => s.status === "aprovada");
+    const topSuggestions = approvedSuggestions
+      .sort((a, b) => b.votesCount - a.votesCount)
+      .slice(0, 5);
+
+    const totalVotes = suggestions.reduce((sum, s) => sum + s.votesCount, 0);
+    const answeredSuggestions = suggestions.filter((s) => s.isAnswered).length;
+
+    // Estatísticas de enquetes
+    const polls = await ctx.db
+      .query("polls")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    const pollsWithResults = await Promise.all(
+      polls.map(async (poll) => {
+        const options = await ctx.db
+          .query("pollOptions")
+          .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
+          .collect();
+
+        const sortedOptions = options.sort((a, b) => b.votesCount - a.votesCount);
+        const winner = sortedOptions[0];
+
+        return {
+          _id: poll._id,
+          question: poll.question,
+          totalVotes: poll.totalVotes,
+          options: sortedOptions,
+          winner: winner ? { text: winner.optionText, votes: winner.votesCount } : null,
+        };
+      })
+    );
+
+    // Lista de espera
+    const waitlist = await ctx.db
+      .query("waitlist")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    return {
+      event: {
+        title: event.title,
+        status: event.status,
+        limit: event.participantLimit,
+        hasCheckIn: event.requireCheckIn || false,
+      },
+      participation: {
+        confirmed,
+        maybe: confirmations.filter((c) => c.status === "talvez").length,
+        declined: confirmations.filter((c) => c.status === "nao_vou").length,
+        checkedIn,
+        noShows,
+        attendanceRate,
+        occupancyRate,
+        total: confirmations.length,
+      },
+      suggestions: {
+        total: suggestions.length,
+        approved: approvedSuggestions.length,
+        pending: suggestions.filter((s) => s.status === "pendente").length,
+        rejected: suggestions.filter((s) => s.status === "rejeitada").length,
+        answered: answeredSuggestions,
+        totalVotes,
+        topSuggestions: topSuggestions.map((s) => ({
+          content: s.content,
+          votes: s.votesCount,
+          authorName: s.authorName,
+          isAnonymous: s.isAnonymous,
+        })),
+      },
+      polls: {
+        total: polls.length,
+        results: pollsWithResults,
+      },
+      waitlist: {
+        total: waitlist.length,
+      },
+    };
+  },
+});
