@@ -285,7 +285,7 @@ const PublicEvent: React.FC = () => {
       await votePoll({
         pollId: activePoll._id,
         pollOptionId: optionId,
-        participantIdentifier: participantId,
+        participantIdentifier: email || participantId, // Usar email se disponível, senão usar participantId
       });
 
       // Marcar enquete como votada e salvar no localStorage
