@@ -242,6 +242,12 @@ export const exportList = query({
 export const getEffectiveAttendance = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
+    // Verificar autenticação
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
     // Buscar todas as confirmações
     const confirmations = await ctx.db
       .query("attendanceConfirmations")
