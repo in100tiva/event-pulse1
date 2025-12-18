@@ -238,6 +238,73 @@ export const exportList = query({
   },
 });
 
+// Calcular participação efetiva baseada nas enquetes (70% de participação)
+export const getEffectiveAttendance = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    // Buscar todas as confirmações
+    const confirmations = await ctx.db
+      .query("attendanceConfirmations")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    // Buscar todas as enquetes do evento
+    const polls = await ctx.db
+      .query("polls")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    if (polls.length === 0) {
+      // Se não há enquetes, usar check-in manual
+      return confirmations.map((conf) => ({
+        ...conf,
+        effectivelyAttended: conf.checkedIn,
+        pollParticipationRate: 0,
+        pollsParticipated: 0,
+        totalPolls: 0,
+      }));
+    }
+
+    // Para cada confirmação, calcular participação nas enquetes
+    const confirmationsWithAttendance = await Promise.all(
+      confirmations.map(async (conf) => {
+        let pollsParticipated = 0;
+
+        // Verificar em quantas enquetes a pessoa votou
+        for (const poll of polls) {
+          const vote = await ctx.db
+            .query("pollVotes")
+            .withIndex("by_poll_participant", (q) =>
+              q.eq("pollId", poll._id).eq("participantIdentifier", conf.email)
+            )
+            .first();
+
+          if (vote) {
+            pollsParticipated++;
+          }
+        }
+
+        const participationRate = polls.length > 0 
+          ? (pollsParticipated / polls.length) * 100 
+          : 0;
+
+        // Considera presente efetivamente se participou de 70% ou mais das enquetes
+        const effectivelyAttended = participationRate >= 70;
+
+        return {
+          ...conf,
+          effectivelyAttended,
+          pollParticipationRate: Math.round(participationRate),
+          pollsParticipated,
+          totalPolls: polls.length,
+        };
+      })
+    );
+
+    return confirmationsWithAttendance;
+  },
+});
+
 // Verificar status do check-in (se está aberto, fechado, etc)
 export const getCheckInStatus = query({
   args: { eventId: v.id("events") },

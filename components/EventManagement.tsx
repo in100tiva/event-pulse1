@@ -25,6 +25,11 @@ const EventManagement: React.FC = () => {
     event ? { eventId: event._id } : 'skip'
   );
   
+  const effectiveAttendance = useQuery(
+    api.attendance.getEffectiveAttendance,
+    event ? { eventId: event._id } : 'skip'
+  );
+  
   const stats = useQuery(
     api.attendance.getStats,
     event ? { eventId: event._id } : 'skip'
@@ -391,11 +396,14 @@ const EventManagement: React.FC = () => {
                             <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Email</th>
                             <th className="px-4 py-3 text-left text-text-secondary-dark w-40 text-sm font-medium leading-normal">Status</th>
                             <th className="px-4 py-3 text-center text-text-secondary-dark w-28 text-sm font-medium leading-normal">Check-in</th>
+                            <th className="px-4 py-3 text-center text-text-secondary-dark w-32 text-sm font-medium leading-normal">Presença Efetiva</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border-dark">
-                          {attendanceList && attendanceList.length > 0 ? (
-                            attendanceList.map((attendance) => (
+                          {effectiveAttendance && effectiveAttendance.length > 0 ? (
+                            effectiveAttendance
+                              .filter(att => att.status === 'vou') // Mostrar apenas confirmados
+                              .map((attendance) => (
                               <tr key={attendance._id}>
                                 <td className="h-[72px] px-4 py-2 w-auto text-white text-sm font-normal leading-normal">{attendance.name}</td>
                                 <td className="h-[72px] px-4 py-2 w-auto text-text-secondary-dark text-sm font-normal leading-normal">{attendance.email}</td>
@@ -412,11 +420,33 @@ const EventManagement: React.FC = () => {
                                     className="h-5 w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
                                   />
                                 </td>
+                                <td className="h-[72px] px-4 py-2 w-32 text-center">
+                                  {attendance.totalPolls > 0 ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      {attendance.effectivelyAttended ? (
+                                        <span className="inline-flex items-center gap-1 text-green-400 font-semibold">
+                                          <span className="material-symbols-outlined text-lg">check_circle</span>
+                                          Presente
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-red-400 font-semibold">
+                                          <span className="material-symbols-outlined text-lg">cancel</span>
+                                          Ausente
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-gray-400">
+                                        {attendance.pollsParticipated}/{attendance.totalPolls} enquetes ({attendance.pollParticipationRate}%)
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-gray-500">Sem enquetes</span>
+                                  )}
+                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="h-[72px] px-4 py-2 text-center text-text-secondary-dark text-sm">
+                              <td colSpan={5} className="h-[72px] px-4 py-2 text-center text-text-secondary-dark text-sm">
                                 Nenhuma confirmação ainda
                               </td>
                             </tr>

@@ -213,8 +213,51 @@ export const getEventStats = query({
     const checkedIn = confirmations.filter((c) => c.checkedIn).length;
     const noShows = confirmations.filter((c) => c.status === "vou" && !c.checkedIn).length;
     
+    // Calcular participação efetiva baseada nas enquetes
+    const polls = await ctx.db
+      .query("polls")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+
+    let effectivelyPresent = 0;
+    let effectivelyAbsent = 0;
+
+    if (polls.length > 0) {
+      // Para cada confirmação "vou", verificar participação nas enquetes
+      const confirmedList = confirmations.filter((c) => c.status === "vou");
+      
+      for (const conf of confirmedList) {
+        let pollsParticipated = 0;
+
+        for (const poll of polls) {
+          const vote = await ctx.db
+            .query("pollVotes")
+            .withIndex("by_poll_participant", (q) =>
+              q.eq("pollId", poll._id).eq("participantIdentifier", conf.email)
+            )
+            .first();
+
+          if (vote) {
+            pollsParticipated++;
+          }
+        }
+
+        const participationRate = (pollsParticipated / polls.length) * 100;
+        
+        if (participationRate >= 70) {
+          effectivelyPresent++;
+        } else {
+          effectivelyAbsent++;
+        }
+      }
+    }
+    
     const attendanceRate = confirmed > 0 
       ? Math.round((checkedIn / confirmed) * 100) 
+      : 0;
+
+    const effectiveAttendanceRate = confirmed > 0 
+      ? Math.round((effectivelyPresent / confirmed) * 100)
       : 0;
 
     const occupancyRate = event.participantLimit 
@@ -281,6 +324,9 @@ export const getEventStats = query({
         checkedIn,
         noShows,
         attendanceRate,
+        effectivelyPresent,
+        effectivelyAbsent,
+        effectiveAttendanceRate,
         occupancyRate,
         total: confirmations.length,
       },
