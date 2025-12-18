@@ -278,12 +278,7 @@ export const getEventStats = query({
     const totalVotes = suggestions.reduce((sum, s) => sum + s.votesCount, 0);
     const answeredSuggestions = suggestions.filter((s) => s.isAnswered).length;
 
-    // Estatísticas de enquetes
-    const polls = await ctx.db
-      .query("polls")
-      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
-      .collect();
-
+    // Estatísticas de enquetes (reutilizar a variável polls já declarada acima)
     const pollsWithResults = await Promise.all(
       polls.map(async (poll) => {
         const options = await ctx.db
