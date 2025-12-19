@@ -283,7 +283,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-red-400 text-lg">cancel</span>
-                <span className="text-white font-semibold">Ausentes (<70%)</span>
+                <span className="text-white font-semibold">Ausentes (&lt;70%)</span>
               </div>
               <span className="text-2xl font-bold text-red-400">{stats.participation.effectivelyAbsent}</span>
             </div>
