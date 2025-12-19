@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 interface EventStatsProps {
   eventId: Id<"events">;
@@ -14,13 +14,6 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
   if (!stats) {
     return <div className="p-4 text-white">Carregando estatísticas...</div>;
   }
-
-  // Dados para gráfico de pizza
-  const participationData = [
-    { name: 'Confirmados', value: stats.participation.confirmed, color: '#22c55e' },
-    { name: 'Talvez', value: stats.participation.maybe, color: '#f59e0b' },
-    { name: 'Recusados', value: stats.participation.declined, color: '#ef4444' },
-  ].filter(d => d.value > 0);
 
   // Dados para gráfico de barras (top sugestões)
   const topSuggestionsData = stats.suggestions.topSuggestions.map((s, i) => ({
@@ -183,96 +176,178 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
         </div>
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Gráfico de Pizza - Distribuição de Status */}
-        {participationData.length > 0 && (
-          <div className="bg-surface-dark border border-border-dark rounded-lg p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-primary">pie_chart</span>
-              <h3 className="text-lg font-bold text-white">Distribuição de Respostas</h3>
+      {/* Gráfico Unificado de Participação */}
+      <div className="bg-surface-dark border border-border-dark rounded-lg p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="material-symbols-outlined text-primary">analytics</span>
+          <h3 className="text-lg font-bold text-white">Visão Geral de Participação</h3>
+        </div>
+        
+        <div className="space-y-4">
+          {/* Confirmados */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-green-400 text-lg">check_circle</span>
+                <span className="text-white font-semibold">Confirmados</span>
+              </div>
+              <span className="text-2xl font-bold text-green-400">{stats.participation.confirmed}</span>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={participationData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {participationData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1a2c20', border: '1px solid #2d4a37' }}
-                  labelStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-2xl font-bold text-green-400">{stats.participation.confirmed}</p>
-                <p className="text-xs text-gray-400">Confirmados</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-orange-400">{stats.participation.maybe}</p>
-                <p className="text-xs text-gray-400">Talvez</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-red-400">{stats.participation.declined}</p>
-                <p className="text-xs text-gray-400">Recusados</p>
+            <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="absolute h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                style={{ width: `${stats.participation.total > 0 ? (stats.participation.confirmed / stats.participation.total) * 100 : 0}%` }}
+              >
+                {stats.participation.confirmed > 0 && (
+                  <span className="text-white text-sm font-bold">
+                    {Math.round((stats.participation.confirmed / stats.participation.total) * 100)}%
+                  </span>
+                )}
               </div>
             </div>
           </div>
-        )}
 
-        {/* Gráfico de Comparação - Participação Efetiva vs Check-in */}
-        <div className="bg-surface-dark border border-border-dark rounded-lg p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-primary">bar_chart</span>
-            <h3 className="text-lg font-bold text-white">Comparação de Presença</h3>
+          {/* Presença Efetiva */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-lg">person_check</span>
+                <span className="text-white font-semibold">Presença Efetiva (≥70%)</span>
+              </div>
+              <span className="text-2xl font-bold text-primary">{stats.participation.effectivelyPresent}</span>
+            </div>
+            <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="absolute h-full bg-gradient-to-r from-primary to-green-300 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                style={{ width: `${stats.participation.confirmed > 0 ? (stats.participation.effectivelyPresent / stats.participation.confirmed) * 100 : 0}%` }}
+              >
+                {stats.participation.effectivelyPresent > 0 && (
+                  <span className="text-white text-sm font-bold">
+                    {stats.participation.effectiveAttendanceRate}%
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={[
-              { 
-                name: 'Confirmados', 
-                value: stats.participation.confirmed,
-                fill: '#60a5fa'
-              },
-              { 
-                name: 'Check-in Manual', 
-                value: stats.participation.checkedIn,
-                fill: '#34d399'
-              },
-              { 
-                name: 'Presença Efetiva', 
-                value: stats.participation.effectivelyPresent,
-                fill: '#22c55e'
-              },
-              { 
-                name: 'Ausentes', 
-                value: stats.participation.effectivelyAbsent,
-                fill: '#ef4444'
-              },
-            ]}>
-              <XAxis dataKey="name" stroke="#9ca3af" angle={-15} textAnchor="end" height={80} />
-              <YAxis stroke="#9ca3af" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1a2c20', border: '1px solid #2d4a37' }}
-                labelStyle={{ color: '#fff' }}
-              />
-              <Bar dataKey="value" fill="#60a5fa">
-                {[0, 1, 2, 3].map((index) => (
-                  <Cell key={`cell-${index}`} fill={['#60a5fa', '#34d399', '#22c55e', '#ef4444'][index]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+
+          {/* Check-in Manual */}
+          {stats.event.hasCheckIn && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-400 text-lg">how_to_reg</span>
+                  <span className="text-white font-semibold">Check-in Manual</span>
+                </div>
+                <span className="text-2xl font-bold text-blue-400">{stats.participation.checkedIn}</span>
+              </div>
+              <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                  style={{ width: `${stats.participation.confirmed > 0 ? (stats.participation.checkedIn / stats.participation.confirmed) * 100 : 0}%` }}
+                >
+                  {stats.participation.checkedIn > 0 && (
+                    <span className="text-white text-sm font-bold">
+                      {stats.participation.attendanceRate}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Talvez */}
+          {stats.participation.maybe > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-yellow-400 text-lg">help</span>
+                  <span className="text-white font-semibold">Talvez</span>
+                </div>
+                <span className="text-2xl font-bold text-yellow-400">{stats.participation.maybe}</span>
+              </div>
+              <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                  style={{ width: `${stats.participation.total > 0 ? (stats.participation.maybe / stats.participation.total) * 100 : 0}%` }}
+                >
+                  <span className="text-white text-sm font-bold">
+                    {Math.round((stats.participation.maybe / stats.participation.total) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ausentes */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-400 text-lg">cancel</span>
+                <span className="text-white font-semibold">Ausentes (<70%)</span>
+              </div>
+              <span className="text-2xl font-bold text-red-400">{stats.participation.effectivelyAbsent}</span>
+            </div>
+            <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+              <div 
+                className="absolute h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                style={{ width: `${stats.participation.confirmed > 0 ? (stats.participation.effectivelyAbsent / stats.participation.confirmed) * 100 : 0}%` }}
+              >
+                {stats.participation.effectivelyAbsent > 0 && (
+                  <span className="text-white text-sm font-bold">
+                    {Math.round((stats.participation.effectivelyAbsent / stats.participation.confirmed) * 100)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recusados */}
+          {stats.participation.declined > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-gray-400 text-lg">block</span>
+                  <span className="text-white font-semibold">Recusados</span>
+                </div>
+                <span className="text-2xl font-bold text-gray-400">{stats.participation.declined}</span>
+              </div>
+              <div className="relative w-full h-8 bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="absolute h-full bg-gradient-to-r from-gray-600 to-gray-500 rounded-full transition-all duration-1000 flex items-center justify-end pr-3"
+                  style={{ width: `${stats.participation.total > 0 ? (stats.participation.declined / stats.participation.total) * 100 : 0}%` }}
+                >
+                  <span className="text-white text-sm font-bold">
+                    {Math.round((stats.participation.declined / stats.participation.total) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Legenda de cores */}
+        <div className="mt-6 pt-6 border-t border-border-dark">
+          <p className="text-sm text-gray-400 mb-3">📊 Interpretação:</p>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-400"></div>
+              <span className="text-gray-300">Confirmados: Total de confirmações</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary"></div>
+              <span className="text-gray-300">Presença Efetiva: Participação ≥70% nas enquetes</span>
+            </div>
+            {stats.event.hasCheckIn && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+                <span className="text-gray-300">Check-in: Presença registrada manualmente</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-400"></div>
+              <span className="text-gray-300">Ausentes: Participação <70% nas enquetes</span>
+            </div>
+          </div>
         </div>
       </div>
 
