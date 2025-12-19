@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -13,6 +13,22 @@ const EventManagement: React.FC = () => {
   const { shareCode } = useParams<{ shareCode: string }>();
   const [activeTab, setActiveTab] = useState<TabType>('confirmations');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showEmailFilterMenu, setShowEmailFilterMenu] = useState(false);
+  const emailMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emailMenuRef.current && !emailMenuRef.current.contains(event.target as Node)) {
+        setShowEmailFilterMenu(false);
+      }
+    };
+
+    if (showEmailFilterMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEmailFilterMenu]);
 
   // Buscar dados reais do Convex
   const event = useQuery(
@@ -152,28 +168,46 @@ const EventManagement: React.FC = () => {
     link.click();
   };
 
-  // Enviar email para confirmados
-  const handleSendEmail = () => {
-    if (!attendanceList || attendanceList.length === 0) {
+  // Enviar email para confirmados com filtro
+  const handleSendEmail = (filter: 'todos' | 'presentes' | 'ausentes' = 'todos') => {
+    if (!effectiveAttendance || effectiveAttendance.length === 0) {
       showToast.warning('Não há participantes confirmados');
       return;
     }
 
-    // Filtrar apenas confirmados com email válido
-    const confirmedEmails = attendanceList
-      .filter(a => a.status === 'vou' && a.email)
+    let filteredParticipants = effectiveAttendance.filter(a => a.status === 'vou');
+
+    // Aplicar filtro de presença efetiva
+    if (filter === 'presentes') {
+      filteredParticipants = filteredParticipants.filter(a => a.effectivelyAttended);
+    } else if (filter === 'ausentes') {
+      filteredParticipants = filteredParticipants.filter(a => !a.effectivelyAttended);
+    }
+
+    const emails = filteredParticipants
+      .filter(a => a.email)
       .map(a => a.email)
       .join(',');
 
-    if (!confirmedEmails) {
-      showToast.warning('Nenhum email encontrado nos confirmados');
+    if (!emails) {
+      const filterLabel = filter === 'presentes' ? 'presentes' : filter === 'ausentes' ? 'ausentes' : 'confirmados';
+      showToast.warning(`Nenhum email encontrado nos participantes ${filterLabel}`);
       return;
     }
 
     // Abrir Gmail em nova aba com os emails pré-preenchidos
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(confirmedEmails)}&su=${encodeURIComponent(`Evento: ${event?.title || 'Informações'}`)}`;
+    const filterSubject = filter === 'presentes' 
+      ? '✅ Parabéns pela participação!' 
+      : filter === 'ausentes' 
+      ? '⚠️ Sentimos sua falta' 
+      : 'Informações';
+    
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails)}&su=${encodeURIComponent(`Evento: ${event?.title || 'Evento'} - ${filterSubject}`)}`;
     window.open(gmailUrl, '_blank');
-    showToast.success('Gmail aberto com os emails dos confirmados');
+    
+    const filterLabel = filter === 'presentes' ? 'presentes' : filter === 'ausentes' ? 'ausentes' : 'confirmados';
+    showToast.success(`Gmail aberto com ${filteredParticipants.length} emails (${filterLabel})`);
+    setShowEmailFilterMenu(false);
   };
 
   // Loading state
@@ -370,13 +404,57 @@ const EventManagement: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex justify-end gap-2 px-4 py-3">
-                    <button 
-                      onClick={handleSendEmail}
-                      className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-lg">mail</span>
-                      <span className="truncate">Enviar Email</span>
-                    </button>
+                    <div className="relative" ref={emailMenuRef}>
+                      <button 
+                        onClick={() => setShowEmailFilterMenu(!showEmailFilterMenu)}
+                        className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-lg">mail</span>
+                        <span className="truncate">Enviar Email</span>
+                        <span className="material-symbols-outlined text-lg">{showEmailFilterMenu ? 'expand_less' : 'expand_more'}</span>
+                      </button>
+                      
+                      {/* Dropdown Menu */}
+                      {showEmailFilterMenu && (
+                        <div className="absolute right-0 mt-2 w-64 rounded-lg bg-surface-dark border border-border-dark shadow-xl z-10">
+                          <div className="p-2">
+                            <button
+                              onClick={() => handleSendEmail('todos')}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-gray-800 rounded-lg transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-blue-400">group</span>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold">Todos Confirmados</p>
+                                <p className="text-xs text-gray-400">Enviar para todos</p>
+                              </div>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleSendEmail('presentes')}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-gray-800 rounded-lg transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-green-400">check_circle</span>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold">Apenas Presentes</p>
+                                <p className="text-xs text-gray-400">Participação ≥ 70%</p>
+                              </div>
+                            </button>
+                            
+                            <button
+                              onClick={() => handleSendEmail('ausentes')}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-left text-white hover:bg-gray-800 rounded-lg transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-red-400">cancel</span>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold">Apenas Ausentes</p>
+                                <p className="text-xs text-gray-400">Participação &lt; 70%</p>
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
                     <button 
                       onClick={handleExportCSV}
                       className="flex items-center justify-center gap-2 min-w-[84px] max-w-[480px] cursor-pointer overflow-hidden rounded-lg h-10 px-4 bg-surface-dark text-white text-sm font-bold leading-normal tracking-[0.015em] border border-border-dark hover:bg-gray-800 transition-colors"
