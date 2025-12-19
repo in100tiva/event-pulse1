@@ -256,88 +256,88 @@ const EventManagement: React.FC = () => {
     <div className="bg-background-dark font-display text-text-primary-dark min-h-screen">
       <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
         <div className="layout-container flex h-full grow flex-col">
-          <div className="px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 flex flex-1 justify-center py-5">
-            <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
+          <div className="px-2 sm:px-4 md:px-8 lg:px-16 xl:px-24 flex flex-1 justify-center py-3 sm:py-5">
+            <div className="layout-content-container flex flex-col w-full max-w-[1200px] flex-1">
               {/* Header */}
-              <div className="flex flex-wrap justify-between items-center gap-4 p-4">
-                <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-3 sm:gap-4 p-2 sm:p-4">
+                <div className="flex items-start gap-2 sm:gap-4 w-full sm:w-auto">
                   <button
                     onClick={() => navigate('/dashboard')}
-                    className="flex items-center justify-center rounded-lg h-10 w-10 bg-gray-800/50 hover:bg-gray-800 transition-colors mt-1"
+                    className="flex items-center justify-center rounded-lg h-9 w-9 sm:h-10 sm:w-10 bg-gray-800/50 hover:bg-gray-800 transition-colors flex-shrink-0"
                     title="Voltar ao Dashboard"
                   >
-                    <span className="material-symbols-outlined">arrow_back</span>
+                    <span className="material-symbols-outlined text-xl">arrow_back</span>
                   </button>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">{event.title}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-text-secondary-dark text-base font-normal leading-normal">Status:</span>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(event.status)}`}>
+                  <div className="flex flex-col gap-1 sm:gap-2 flex-1 min-w-0">
+                    <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em] truncate">{event.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-text-secondary-dark text-sm sm:text-base font-normal leading-normal">Status:</span>
+                      <span className={`inline-flex items-center rounded-full px-2 sm:px-2.5 py-0.5 text-xs font-medium ${getStatusColor(event.status)}`}>
                         {getStatusLabel(event.status)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button 
                     onClick={() => navigate(`/edit-event/${event._id}`)}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-background-dark border border-border-dark text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-gray-800 transition-colors"
+                    className="flex flex-1 sm:flex-initial min-w-0 sm:min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 sm:h-10 px-3 sm:px-4 bg-background-dark border border-border-dark text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-gray-800 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-base">edit</span>
-                    <span className="truncate">Editar Evento</span>
+                    <span className="material-symbols-outlined text-base sm:text-lg">edit</span>
+                    <span className="hidden sm:inline truncate">Editar</span>
                   </button>
                   <button 
                     onClick={handleCopyLink}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors"
+                    className="flex flex-1 sm:flex-initial min-w-0 sm:min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 sm:h-10 px-3 sm:px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-base">{copySuccess ? 'check' : 'link'}</span>
-                    <span className="truncate">{copySuccess ? 'Link Copiado!' : 'Copiar Link'}</span>
+                    <span className="material-symbols-outlined text-base sm:text-lg">{copySuccess ? 'check' : 'link'}</span>
+                    <span className="truncate">{copySuccess ? 'Copiado!' : 'Link'}</span>
                   </button>
                 </div>
               </div>
 
               {/* Tabs */}
-              <div className="pb-3 sticky top-0 bg-background-dark z-10">
-                <div className="flex border-b border-border-dark px-4 gap-8">
+              <div className="pb-3 sticky top-0 bg-background-dark z-10 overflow-x-auto">
+                <div className="flex border-b border-border-dark px-2 sm:px-4 gap-4 sm:gap-8 min-w-max">
                   <button 
                     onClick={() => setActiveTab('confirmations')}
-                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors whitespace-nowrap ${
                       activeTab === 'confirmations' 
                         ? 'border-b-primary text-primary' 
                         : 'border-b-transparent text-text-secondary-dark hover:text-white'
                     }`}
                   >
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Confirmações</p>
+                    <p className="text-xs sm:text-sm font-bold leading-normal tracking-[0.015em]">Confirmações</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('suggestions')}
-                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors whitespace-nowrap ${
                       activeTab === 'suggestions' 
                         ? 'border-b-primary text-primary' 
                         : 'border-b-transparent text-text-secondary-dark hover:text-white'
                     }`}
                   >
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Sugestões ({suggestions?.length || 0})</p>
+                    <p className="text-xs sm:text-sm font-bold leading-normal tracking-[0.015em]">Sugestões ({suggestions?.length || 0})</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('polls')}
-                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors whitespace-nowrap ${
                       activeTab === 'polls' 
                         ? 'border-b-primary text-primary' 
                         : 'border-b-transparent text-text-secondary-dark hover:text-white'
                     }`}
                   >
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">Enquetes ({polls?.length || 0})</p>
+                    <p className="text-xs sm:text-sm font-bold leading-normal tracking-[0.015em]">Enquetes ({polls?.length || 0})</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('statistics')}
-                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors ${
+                    className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-4 cursor-pointer transition-colors whitespace-nowrap ${
                       activeTab === 'statistics' 
                         ? 'border-b-primary text-primary' 
                         : 'border-b-transparent text-text-secondary-dark hover:text-white'
                     }`}
                   >
-                    <p className="text-sm font-bold leading-normal tracking-[0.015em]">📊 Estatísticas</p>
+                    <p className="text-xs sm:text-sm font-bold leading-normal tracking-[0.015em]">📊 Estatísticas</p>
                   </button>
                 </div>
               </div>
@@ -387,23 +387,23 @@ const EventManagement: React.FC = () => {
                   )}
 
                   {/* Stats Cards */}
-                  <div className="flex flex-wrap gap-4 p-4">
-                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                      <p className="text-white text-base font-medium leading-normal">Confirmados</p>
-                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.confirmed || 0}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-2 sm:p-4">
+                    <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark">
+                      <p className="text-white text-sm sm:text-base font-medium leading-normal">Confirmados</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.confirmed || 0}</p>
                     </div>
-                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                      <p className="text-white text-base font-medium leading-normal">Talvez</p>
-                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.maybe || 0}</p>
+                    <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark">
+                      <p className="text-white text-sm sm:text-base font-medium leading-normal">Talvez</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.maybe || 0}</p>
                     </div>
-                    <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-border-dark bg-surface-dark">
-                      <p className="text-white text-base font-medium leading-normal">Recusados</p>
-                      <p className="text-white tracking-light text-3xl font-bold leading-tight">{stats?.declined || 0}</p>
+                    <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark sm:col-span-2 lg:col-span-1">
+                      <p className="text-white text-sm sm:text-base font-medium leading-normal">Recusados</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.declined || 0}</p>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex justify-end gap-2 px-4 py-3">
+                  <div className="flex flex-col sm:flex-row justify-end gap-2 px-2 sm:px-4 py-3">
                     <div className="relative" ref={emailMenuRef}>
                       <button 
                         onClick={() => setShowEmailFilterMenu(!showEmailFilterMenu)}
@@ -465,72 +465,80 @@ const EventManagement: React.FC = () => {
                   </div>
 
                   {/* Table */}
-                  <div className="px-4 py-3 @container">
-                    <div className="flex overflow-hidden rounded-xl border border-border-dark bg-surface-dark">
-                      <table className="flex-1">
-                        <thead className="border-b border-b-border-dark">
-                          <tr className="bg-surface-dark">
-                            <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Nome</th>
-                            <th className="px-4 py-3 text-left text-text-secondary-dark w-auto text-sm font-medium leading-normal">Email</th>
-                            <th className="px-4 py-3 text-left text-text-secondary-dark w-40 text-sm font-medium leading-normal">Status</th>
-                            <th className="px-4 py-3 text-center text-text-secondary-dark w-28 text-sm font-medium leading-normal">Check-in</th>
-                            <th className="px-4 py-3 text-center text-text-secondary-dark w-32 text-sm font-medium leading-normal">Presença Efetiva</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-dark">
-                          {effectiveAttendance && effectiveAttendance.length > 0 ? (
-                            effectiveAttendance
-                              .filter(att => att.status === 'vou') // Mostrar apenas confirmados
-                              .map((attendance) => (
-                              <tr key={attendance._id}>
-                                <td className="h-[72px] px-4 py-2 w-auto text-white text-sm font-normal leading-normal">{attendance.name}</td>
-                                <td className="h-[72px] px-4 py-2 w-auto text-text-secondary-dark text-sm font-normal leading-normal">{attendance.email}</td>
-                                <td className="h-[72px] px-4 py-2 w-40 text-sm font-normal leading-normal">
-                                  <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getAttendanceStatusColor(attendance.status)}`}>
-                                    {getAttendanceStatusLabel(attendance.status)}
-                                  </span>
-                                </td>
-                                <td className="h-[72px] px-4 py-2 w-28 text-center text-sm font-normal leading-normal">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={attendance.checkedIn}
-                                    onChange={() => handleCheckIn(attendance._id, attendance.checkedIn)}
-                                    className="h-5 w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
-                                  />
-                                </td>
-                                <td className="h-[72px] px-4 py-2 w-32 text-center">
-                                  {attendance.totalPolls > 0 ? (
-                                    <div className="flex flex-col items-center gap-1">
-                                      {attendance.effectivelyAttended ? (
-                                        <span className="inline-flex items-center gap-1 text-green-400 font-semibold">
-                                          <span className="material-symbols-outlined text-lg">check_circle</span>
-                                          Presente
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 text-red-400 font-semibold">
-                                          <span className="material-symbols-outlined text-lg">cancel</span>
-                                          Ausente
-                                        </span>
-                                      )}
-                                      <span className="text-xs text-gray-400">
-                                        {attendance.pollsParticipated}/{attendance.totalPolls} enquetes ({attendance.pollParticipationRate}%)
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-gray-500">Sem enquetes</span>
-                                  )}
-                                </td>
+                  <div className="px-2 sm:px-4 py-3">
+                    <div className="overflow-x-auto -mx-2 sm:mx-0">
+                      <div className="inline-block min-w-full align-middle">
+                        <div className="overflow-hidden rounded-xl border border-border-dark bg-surface-dark">
+                          <table className="min-w-full divide-y divide-border-dark">
+                            <thead className="bg-surface-dark">
+                              <tr>
+                                <th className="px-3 sm:px-4 py-3 text-left text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Nome</th>
+                                <th className="px-3 sm:px-4 py-3 text-left text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Email</th>
+                                <th className="px-3 sm:px-4 py-3 text-left text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Status</th>
+                                <th className="px-3 sm:px-4 py-3 text-center text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Check-in</th>
+                                <th className="px-3 sm:px-4 py-3 text-center text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Presença Efetiva</th>
                               </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="h-[72px] px-4 py-2 text-center text-text-secondary-dark text-sm">
-                                Nenhuma confirmação ainda
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="divide-y divide-border-dark bg-surface-dark">
+                              {effectiveAttendance && effectiveAttendance.length > 0 ? (
+                                effectiveAttendance
+                                  .filter(att => att.status === 'vou') // Mostrar apenas confirmados
+                                  .map((attendance) => (
+                                  <tr key={attendance._id} className="hover:bg-gray-800/50 transition-colors">
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-normal leading-normal">
+                                      <div className="max-w-[120px] sm:max-w-none truncate">{attendance.name}</div>
+                                    </td>
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary-dark text-xs sm:text-sm font-normal leading-normal">
+                                      <div className="max-w-[150px] sm:max-w-none truncate">{attendance.email}</div>
+                                    </td>
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3">
+                                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getAttendanceStatusColor(attendance.status)} whitespace-nowrap`}>
+                                        {getAttendanceStatusLabel(attendance.status)}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={attendance.checkedIn}
+                                        onChange={() => handleCheckIn(attendance._id, attendance.checkedIn)}
+                                        className="h-4 w-4 sm:h-5 sm:w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
+                                      />
+                                    </td>
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
+                                      {attendance.totalPolls > 0 ? (
+                                        <div className="flex flex-col items-center gap-1">
+                                          {attendance.effectivelyAttended ? (
+                                            <span className="inline-flex items-center gap-1 text-green-400 font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                              <span className="material-symbols-outlined text-base sm:text-lg">check_circle</span>
+                                              <span className="hidden sm:inline">Presente</span>
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 text-red-400 font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                              <span className="material-symbols-outlined text-base sm:text-lg">cancel</span>
+                                              <span className="hidden sm:inline">Ausente</span>
+                                            </span>
+                                          )}
+                                          <span className="text-xs text-gray-400 whitespace-nowrap">
+                                            {attendance.pollsParticipated}/{attendance.totalPolls} ({attendance.pollParticipationRate}%)
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-500">Sem enquetes</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="px-3 sm:px-4 py-8 text-center text-text-secondary-dark text-sm">
+                                    Nenhuma confirmação ainda
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -663,14 +671,14 @@ const EventManagement: React.FC = () => {
           </div>
 
           {/* Footer Actions */}
-          <div className="sticky bottom-0 w-full bg-surface-dark/95 backdrop-blur-sm border-t border-border-dark p-4 z-20">
-            <div className="max-w-[960px] mx-auto flex justify-end items-center gap-4">
+          <div className="sticky bottom-0 w-full bg-surface-dark/95 backdrop-blur-sm border-t border-border-dark p-3 sm:p-4 z-20">
+            <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 sm:gap-4">
               <button 
                 onClick={() => handleUpdateStatus('encerrado')}
                 disabled={event.status === 'encerrado'}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-red-900/80 hover:bg-red-800 text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 sm:h-12 px-4 sm:px-6 bg-red-900/80 hover:bg-red-800 text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
               >
-                <span className="material-symbols-outlined text-lg">stop_circle</span>
+                <span className="material-symbols-outlined text-base sm:text-lg">stop_circle</span>
                 <span className="truncate">Finalizar Evento</span>
               </button>
               <button 
@@ -679,9 +687,9 @@ const EventManagement: React.FC = () => {
                   navigate(`/projection/${event.shareLinkCode}`);
                 }}
                 disabled={event.status === 'encerrado'}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 sm:h-12 px-4 sm:px-6 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
               >
-                <span className="material-symbols-outlined text-lg">play_circle</span>
+                <span className="material-symbols-outlined text-base sm:text-lg">play_circle</span>
                 <span className="truncate">Iniciar Evento</span>
               </button>
             </div>
