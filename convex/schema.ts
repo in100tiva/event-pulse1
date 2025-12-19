@@ -92,6 +92,9 @@ export default defineSchema({
     showResultsAutomatically: v.boolean(),
     isActive: v.boolean(),
     totalVotes: v.number(),
+    timerDuration: v.optional(v.number()), // Duração do timer em segundos (30, 60, 90, 120)
+    activatedAt: v.optional(v.number()), // Timestamp de quando foi ativada
+    expiresAt: v.optional(v.number()), // Timestamp de quando deve expirar
   })
     .index("by_event", ["eventId"])
     .index("by_event_active", ["eventId", "isActive"]),

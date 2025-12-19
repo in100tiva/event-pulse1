@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 
 // Criar enquete
 export const create = mutation({
@@ -9,6 +9,7 @@ export const create = mutation({
     options: v.array(v.string()),
     allowMultipleChoice: v.boolean(),
     showResultsAutomatically: v.boolean(),
+    timerDuration: v.optional(v.number()), // 30, 60, 90 ou 120 segundos
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -29,6 +30,7 @@ export const create = mutation({
       showResultsAutomatically: args.showResultsAutomatically,
       isActive: false,
       totalVotes: 0,
+      timerDuration: args.timerDuration,
     });
 
     // Criar as opções
@@ -129,9 +131,25 @@ export const toggleActive = mutation({
       for (const activePoll of activePolls) {
         await ctx.db.patch(activePoll._id, { isActive: false });
       }
+
+      // Definir timestamps se houver temporizador
+      const now = Date.now();
+      const updateData: any = { isActive: args.isActive, activatedAt: now };
+      
+      if (poll.timerDuration) {
+        updateData.expiresAt = now + (poll.timerDuration * 1000);
+      }
+      
+      await ctx.db.patch(args.id, updateData);
+    } else {
+      // Ao desativar, limpar timestamps
+      await ctx.db.patch(args.id, { 
+        isActive: args.isActive,
+        activatedAt: undefined,
+        expiresAt: undefined,
+      });
     }
 
-    await ctx.db.patch(args.id, { isActive: args.isActive });
     return args.id;
   },
 });
@@ -299,5 +317,28 @@ export const getResults = query({
             : 0,
       })),
     };
+  },
+});
+
+// Desativar enquetes expiradas (função interna para cron)
+export const deactivateExpiredPolls = internalMutation({
+  handler: async (ctx) => {
+    const now = Date.now();
+    
+    // Buscar todas as enquetes ativas com temporizador
+    const activePolls = await ctx.db
+      .query("polls")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    for (const poll of activePolls) {
+      // Se tem expiresAt e já passou do tempo
+      if (poll.expiresAt && now >= poll.expiresAt) {
+        await ctx.db.patch(poll._id, { 
+          isActive: false,
+        });
+        console.log(`[deactivateExpiredPolls] Enquete ${poll._id} desativada automaticamente`);
+      }
+    }
   },
 });

@@ -5,6 +5,37 @@ import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
 import { showToast } from '../src/utils/toast';
 
+// Componente de Contador Regressivo
+const PollTimer: React.FC<{ expiresAt: number }> = ({ expiresAt }) => {
+  const [timeLeft, setTimeLeft] = useState(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-lg">
+      <span className="material-symbols-outlined text-yellow-400">schedule</span>
+      <span className={`text-lg font-bold ${timeLeft <= 10 ? 'text-red-400' : timeLeft <= 30 ? 'text-yellow-400' : 'text-green-400'}`}>
+        {minutes}:{seconds.toString().padStart(2, '0')}
+      </span>
+      <span className="text-sm text-gray-400">restante</span>
+    </div>
+  );
+};
+
 const PublicEvent: React.FC = () => {
   const { code } = useParams<{ code: string }>();
   const event = useQuery(api.events.getByShareCode, { shareLinkCode: code || '' });
@@ -720,12 +751,15 @@ const PublicEvent: React.FC = () => {
               {/* Live Poll Section - Só mostra se não votou ainda */}
               {activePoll && !votedPolls.has(activePoll._id.toString()) && (
                 <section className="bg-surface-dark border-2 border-success rounded-lg p-6 shadow-lg shadow-green-900/10">
-                  <div className="flex items-center gap-3 px-4 pt-2">
-                    <div className="relative flex items-center">
-                      <div className="absolute h-2 w-2 rounded-full bg-success"></div>
-                      <div className="h-2 w-2 rounded-full bg-success animate-ping"></div>
+                  <div className="flex items-center justify-between px-4 pt-2">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex items-center">
+                        <div className="absolute h-2 w-2 rounded-full bg-success"></div>
+                        <div className="h-2 w-2 rounded-full bg-success animate-ping"></div>
+                      </div>
+                      <h2 className="text-2xl font-bold leading-tight tracking-tight text-success">Enquete Ativa</h2>
                     </div>
-                    <h2 className="text-2xl font-bold leading-tight tracking-tight text-success">Enquete Ativa</h2>
+                    {activePoll.expiresAt && <PollTimer expiresAt={activePoll.expiresAt} />}
                   </div>
                   <p className="px-4 text-lg font-medium mt-4 text-white">{activePoll.question}</p>
                   <div className="flex flex-col gap-3 p-4">

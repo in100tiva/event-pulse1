@@ -1,8 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { showToast } from '../src/utils/toast';
+
+// Componente de Contador Regressivo
+const PollTimer: React.FC<{ expiresAt: number }> = ({ expiresAt }) => {
+  const [timeLeft, setTimeLeft] = useState(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  const percentage = timeLeft > 0 ? 100 : 0;
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative w-24 h-24">
+        <svg className="transform -rotate-90" width="96" height="96">
+          <circle
+            cx="48"
+            cy="48"
+            r="40"
+            stroke="#374151"
+            strokeWidth="8"
+            fill="none"
+          />
+          <circle
+            cx="48"
+            cy="48"
+            r="40"
+            stroke={timeLeft <= 10 ? '#ef4444' : timeLeft <= 30 ? '#f59e0b' : '#22c55e'}
+            strokeWidth="8"
+            fill="none"
+            strokeDasharray={`${2 * Math.PI * 40}`}
+            strokeDashoffset={`${2 * Math.PI * 40 * (1 - percentage / 100)}`}
+            strokeLinecap="round"
+            className="transition-all duration-1000"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-3xl font-bold ${timeLeft <= 10 ? 'text-red-400' : timeLeft <= 30 ? 'text-yellow-400' : 'text-green-400'}`}>
+            {minutes}:{seconds.toString().padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+      <p className="text-sm text-gray-400">
+        {timeLeft > 0 ? 'Tempo restante' : 'Enquete encerrada'}
+      </p>
+    </div>
+  );
+};
 
 const ProjectionView: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +72,7 @@ const ProjectionView: React.FC = () => {
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [showResults, setShowResults] = useState(true);
+  const [timerDuration, setTimerDuration] = useState<number | undefined>(undefined);
 
   // Buscar dados reais do Convex
   const event = useQuery(
@@ -59,6 +119,7 @@ const ProjectionView: React.FC = () => {
         options: validOptions,
         allowMultipleChoice: allowMultiple,
         showResultsAutomatically: showResults,
+        timerDuration,
       });
 
       // Reset form
@@ -66,6 +127,7 @@ const ProjectionView: React.FC = () => {
       setPollOptions(['', '']);
       setAllowMultiple(false);
       setShowResults(true);
+      setTimerDuration(undefined);
       setShowCreatePoll(false);
       setViewMode('Enquete');
     } catch (error) {
@@ -202,7 +264,14 @@ const ProjectionView: React.FC = () => {
                {activePoll ? (
                  <>
                    <h2 className="text-3xl font-medium text-center text-text-secondary-dark mb-8">{activePoll.question}</h2>
-                   
+
+                   {/* Timer Visual */}
+                   {activePoll.expiresAt && (
+                     <div className="flex justify-center mb-8">
+                       <PollTimer expiresAt={activePoll.expiresAt} />
+                     </div>
+                   )}
+
                    <div className="flex flex-col gap-6">
                       {activePoll.options?.map((option) => {
                         const percentage = activePoll.totalVotes > 0 
@@ -337,6 +406,44 @@ const ProjectionView: React.FC = () => {
                     />
                     <span className="text-gray-300">Mostrar resultados automaticamente</span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 text-base font-medium mb-3">
+                    Temporizador (Opcional)
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTimerDuration(undefined)}
+                      className={`px-4 py-3 rounded-lg font-medium transition-all ${
+                        timerDuration === undefined
+                          ? 'bg-primary text-background-dark ring-2 ring-primary'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      Sem timer
+                    </button>
+                    {[30, 60, 90, 120].map((seconds) => (
+                      <button
+                        key={seconds}
+                        type="button"
+                        onClick={() => setTimerDuration(seconds)}
+                        className={`px-4 py-3 rounded-lg font-medium transition-all ${
+                          timerDuration === seconds
+                            ? 'bg-primary text-background-dark ring-2 ring-primary'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {seconds}s
+                      </button>
+                    ))}
+                  </div>
+                  {timerDuration && (
+                    <p className="text-sm text-gray-400 mt-2">
+                      ⏱️ A enquete será encerrada automaticamente após {timerDuration} segundos
+                    </p>
+                  )}
                 </div>
               </div>
 

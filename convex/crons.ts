@@ -10,4 +10,11 @@ crons.interval(
   internal.attendance.releaseNoShowSlots
 );
 
+// Desativar enquetes expiradas a cada 10 segundos
+crons.interval(
+  "deactivate-expired-polls",
+  { seconds: 10 },
+  internal.polls.deactivateExpiredPolls
+);
+
 export default crons;
