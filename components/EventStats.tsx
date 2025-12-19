@@ -345,7 +345,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             )}
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-400"></div>
-              <span className="text-gray-300">Ausentes: Participação <70% nas enquetes</span>
+              <span className="text-gray-300">Ausentes: Participação &lt;70% nas enquetes</span>
             </div>
           </div>
         </div>
