@@ -24,11 +24,25 @@ import 'dotenv/config'
 
 const app = new Hono()
 
-// CORS configuration
+// CORS configuration - multiple origins support
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+  // Support Vercel preview URLs
+].filter(Boolean) as string[]
+
 app.use('/*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL || ''].filter(Boolean),
+  origin: (origin) => {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return true
+    // Check if origin matches allowed list or is a Vercel preview URL
+    if (allowedOrigins.includes(origin)) return true
+    if (origin.endsWith('.vercel.app')) return true
+    return false
+  },
   allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Clerk-User-Id'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Clerk-User-Id', 'X-User-Id', 'X-User-Email', 'X-User-FirstName', 'X-User-LastName'],
   exposeHeaders: ['Content-Length'],
   credentials: true,
   maxAge: 86400,
