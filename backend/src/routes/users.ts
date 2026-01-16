@@ -16,10 +16,16 @@ const syncUserSchema = z.object({
 })
 
 users.post('/sync', async (c) => {
-  const body = await c.req.json()
-  const data = syncUserSchema.parse(body)
+  console.log('[SYNC] Recebendo requisição de sync')
+  
+  try {
+    const body = await c.req.json()
+    console.log('[SYNC] Dados recebidos:', JSON.stringify(body))
+    
+    const data = syncUserSchema.parse(body)
+    console.log('[SYNC] Dados validados para:', data.email)
 
-  const user = await prisma.user.upsert({
+    const user = await prisma.user.upsert({
     where: { clerkId: data.clerkId },
     update: {
       email: data.email,
@@ -36,7 +42,12 @@ users.post('/sync', async (c) => {
     },
   })
 
+  console.log('[SYNC] Usuário sincronizado com sucesso:', user.email)
   return c.json(user)
+  } catch (error) {
+    console.error('[SYNC] Erro ao sincronizar:', error)
+    throw error
+  }
 })
 
 // Get current user
