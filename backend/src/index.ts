@@ -28,8 +28,8 @@ const app = new Hono()
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
+  'https://pulse.in100tiva.com',
   process.env.FRONTEND_URL,
-  // Support Vercel preview URLs
 ].filter(Boolean) as string[]
 
 app.use('/*', cors({
