@@ -77,25 +77,43 @@ const Dashboard: React.FC = () => {
 
   // Sincronizar dados do Clerk ao montar
   useEffect(() => {
-    if (user) {
-      syncUser({
-        clerkId: user.id,
-        email: user.primaryEmailAddress?.emailAddress || '',
-        firstName: user.firstName || undefined,
-        lastName: user.lastName || undefined,
-        avatarUrl: user.imageUrl || undefined,
-      });
-    }
-  }, [user, syncUser]);
+    const syncUserData = async () => {
+      if (user && user.primaryEmailAddress?.emailAddress) {
+        try {
+          await syncUser({
+            clerkId: user.id,
+            email: user.primaryEmailAddress.emailAddress,
+            firstName: user.firstName || undefined,
+            lastName: user.lastName || undefined,
+            avatarUrl: user.imageUrl || undefined,
+          });
+        } catch (error) {
+          console.error('Erro ao sincronizar usuário:', error);
+          // Não mostra toast para não incomodar o usuário, apenas loga
+        }
+      }
+    };
+    
+    syncUserData();
+  }, [user?.id, user?.primaryEmailAddress?.emailAddress]);
 
   useEffect(() => {
-    if (organization) {
-      syncOrganization({
-        clerkId: organization.id,
-        name: organization.name,
-      });
-    }
-  }, [organization, syncOrganization]);
+    const syncOrgData = async () => {
+      if (organization) {
+        try {
+          await syncOrganization({
+            clerkId: organization.id,
+            name: organization.name,
+          });
+        } catch (error) {
+          console.error('Erro ao sincronizar organização:', error);
+          // Não mostra toast para não incomodar o usuário, apenas loga
+        }
+      }
+    };
+    
+    syncOrgData();
+  }, [organization?.id, organization?.name]);
 
   const handleLogout = async () => {
     await signOut();

@@ -11,28 +11,38 @@ export const syncUser = mutation({
     avatarUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
+    try {
+      // Verificar se o email é válido
+      if (!args.email || args.email.trim() === '') {
+        throw new Error("Email é obrigatório");
+      }
 
-    if (existingUser) {
-      await ctx.db.patch(existingUser._id, {
+      const existingUser = await ctx.db
+        .query("users")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+        .first();
+
+      if (existingUser) {
+        await ctx.db.patch(existingUser._id, {
+          email: args.email,
+          firstName: args.firstName,
+          lastName: args.lastName,
+          avatarUrl: args.avatarUrl,
+        });
+        return existingUser._id;
+      }
+
+      return await ctx.db.insert("users", {
+        clerkId: args.clerkId,
         email: args.email,
         firstName: args.firstName,
         lastName: args.lastName,
         avatarUrl: args.avatarUrl,
       });
-      return existingUser._id;
+    } catch (error) {
+      console.error("Erro ao sincronizar usuário:", error);
+      throw new Error(`Falha ao sincronizar usuário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
-
-    return await ctx.db.insert("users", {
-      clerkId: args.clerkId,
-      email: args.email,
-      firstName: args.firstName,
-      lastName: args.lastName,
-      avatarUrl: args.avatarUrl,
-    });
   },
 });
 
@@ -92,33 +102,39 @@ export const createOrganization = mutation({
 export const getUserOrganizations = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        return [];
+      }
+
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+        .first();
+
+      if (!user) {
+        return [];
+      }
+
+      const orgUsers = await ctx.db
+        .query("organizationUsers")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+
+      const organizations = await Promise.all(
+        orgUsers.map(async (orgUser) => {
+          const org = await ctx.db.get(orgUser.organizationId);
+          return org ? { ...org, role: orgUser.role } : null;
+        })
+      );
+
+      return organizations.filter((org) => org !== null);
+    } catch (error) {
+      console.error("Erro ao buscar organizações do usuário:", error);
+      // Retornar array vazio em caso de erro para não quebrar a UI
       return [];
     }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      return [];
-    }
-
-    const orgUsers = await ctx.db
-      .query("organizationUsers")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-
-    const organizations = await Promise.all(
-      orgUsers.map(async (orgUser) => {
-        const org = await ctx.db.get(orgUser.organizationId);
-        return org ? { ...org, role: orgUser.role } : null;
-      })
-    );
-
-    return organizations.filter((org) => org !== null);
   },
 });
 
@@ -129,57 +145,62 @@ export const syncOrganization = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Não autenticado");
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw new Error("Não autenticado");
+      }
+
+      // Buscar o usuário atual
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+        .first();
+
+      if (!user) {
+        throw new Error("Usuário não encontrado. Por favor, faça login novamente.");
+      }
+
+      const existingOrg = await ctx.db
+        .query("organizations")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+        .first();
+
+      let orgId;
+
+      if (existingOrg) {
+        await ctx.db.patch(existingOrg._id, {
+          name: args.name,
+        });
+        orgId = existingOrg._id;
+      } else {
+        orgId = await ctx.db.insert("organizations", {
+          name: args.name,
+          clerkId: args.clerkId,
+        });
+      }
+
+      // Verificar se o usuário já está associado a esta organização
+      const existingMembership = await ctx.db
+        .query("organizationUsers")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .filter((q) => q.eq(q.field("userId"), user._id))
+        .first();
+
+      // Se não estiver associado, criar a associação
+      if (!existingMembership) {
+        await ctx.db.insert("organizationUsers", {
+          organizationId: orgId,
+          userId: user._id,
+          role: "admin",
+        });
+      }
+
+      return orgId;
+    } catch (error) {
+      console.error("Erro ao sincronizar organização:", error);
+      throw new Error(`Falha ao sincronizar organização: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
-
-    // Buscar o usuário atual
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("Usuário não encontrado");
-    }
-
-    const existingOrg = await ctx.db
-      .query("organizations")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    let orgId;
-
-    if (existingOrg) {
-      await ctx.db.patch(existingOrg._id, {
-        name: args.name,
-      });
-      orgId = existingOrg._id;
-    } else {
-      orgId = await ctx.db.insert("organizations", {
-        name: args.name,
-        clerkId: args.clerkId,
-      });
-    }
-
-    // Verificar se o usuário já está associado a esta organização
-    const existingMembership = await ctx.db
-      .query("organizationUsers")
-      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
-      .first();
-
-    // Se não estiver associado, criar a associação
-    if (!existingMembership) {
-      await ctx.db.insert("organizationUsers", {
-        organizationId: orgId,
-        userId: user._id,
-        role: "admin",
-      });
-    }
-
-    return orgId;
   },
 });
 

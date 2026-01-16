@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vercel --prod",
-    "vercel-build": "vite build"
+    "vercel-build": "vite build",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.20.0",
