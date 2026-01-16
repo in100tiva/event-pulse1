@@ -35,11 +35,13 @@ const allowedOrigins = [
 app.use('/*', cors({
   origin: (origin) => {
     // Allow requests with no origin (mobile apps, curl, etc)
-    if (!origin) return true
-    // Check if origin matches allowed list or is a Vercel preview URL
-    if (allowedOrigins.includes(origin)) return true
-    if (origin.endsWith('.vercel.app')) return true
-    return false
+    if (!origin) return '*'
+    // Check if origin matches allowed list
+    if (allowedOrigins.includes(origin)) return origin
+    // Allow Vercel preview URLs
+    if (origin.endsWith('.vercel.app')) return origin
+    // Reject unknown origins
+    return null
   },
   allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Clerk-User-Id', 'X-User-Id', 'X-User-Email', 'X-User-FirstName', 'X-User-LastName'],
