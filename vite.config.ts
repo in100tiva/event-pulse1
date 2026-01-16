@@ -8,6 +8,17 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // Proxy para o backend API (desenvolvimento)
+        proxy: {
+          '/api': {
+            target: env.VITE_API_URL || 'http://localhost:3001',
+            changeOrigin: true,
+          },
+          '/ws': {
+            target: env.VITE_WS_URL || 'ws://localhost:3001',
+            ws: true,
+          },
+        },
       },
       plugins: [react()],
       define: {

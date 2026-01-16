@@ -1,26 +1,24 @@
 import React from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { useEventStats } from '../src/lib/hooks';
 
 interface EventStatsProps {
-  eventId: Id<"events">;
+  eventId: string;
 }
 
 const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
-  const stats = useQuery(api.events.getEventStats, { eventId });
+  const { data: stats, isLoading } = useEventStats(eventId);
 
-  if (!stats) {
+  if (isLoading || !stats) {
     return <div className="p-4 text-white">Carregando estatísticas...</div>;
   }
 
   // Dados para gráfico de barras (top sugestões)
-  const topSuggestionsData = stats.suggestions.topSuggestions.map((s, i) => ({
+  const topSuggestionsData = stats.suggestions?.topSuggestions?.map((s: any, i: number) => ({
     name: `#${i + 1}`,
     votes: s.votes,
     content: s.content.substring(0, 30) + (s.content.length > 30 ? '...' : ''),
-  }));
+  })) || [];
 
   return (
     <div className="p-4 space-y-6">
@@ -39,7 +37,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
               <span className="material-symbols-outlined text-green-400">check_circle</span>
               <p className="text-gray-300 text-sm font-medium">Presentes Efetivos</p>
             </div>
-            <p className="text-5xl font-black text-green-400 mt-2">{stats.participation.effectivelyPresent}</p>
+            <p className="text-5xl font-black text-green-400 mt-2">{stats.participation?.effectivelyPresent || 0}</p>
             <p className="text-sm text-gray-400 mt-2">
               Participaram de 70%+ das enquetes
             </p>
@@ -50,7 +48,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
               <span className="material-symbols-outlined text-red-400">cancel</span>
               <p className="text-gray-300 text-sm font-medium">Ausentes/Baixa Participação</p>
             </div>
-            <p className="text-5xl font-black text-red-400 mt-2">{stats.participation.effectivelyAbsent}</p>
+            <p className="text-5xl font-black text-red-400 mt-2">{stats.participation?.effectivelyAbsent || 0}</p>
             <p className="text-sm text-gray-400 mt-2">
               Participaram de menos de 70% das enquetes
             </p>
@@ -61,9 +59,9 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
               <span className="material-symbols-outlined text-blue-400">percent</span>
               <p className="text-gray-300 text-sm font-medium">Taxa de Participação Real</p>
             </div>
-            <p className="text-5xl font-black text-blue-400 mt-2">{stats.participation.effectiveAttendanceRate}%</p>
+            <p className="text-5xl font-black text-blue-400 mt-2">{stats.participation?.effectiveAttendanceRate || 0}%</p>
             <p className="text-sm text-gray-400 mt-2">
-              De {stats.participation.confirmed} confirmados
+              De {stats.participation?.confirmed || 0} confirmados
             </p>
           </div>
         </div>
@@ -85,28 +83,28 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <p className="text-gray-400 text-sm">Confirmados</p>
             <span className="material-symbols-outlined text-primary">people</span>
           </div>
-          <p className="text-3xl font-bold text-white mt-2">{stats.participation.confirmed}</p>
-          {stats.event.limit && (
+          <p className="text-3xl font-bold text-white mt-2">{stats.participation?.confirmed || 0}</p>
+          {stats.event?.limit && (
             <div className="mt-2">
               <p className="text-xs text-gray-400">de {stats.event.limit} vagas</p>
               <div className="w-full bg-gray-700 rounded-full h-1.5 mt-1">
                 <div 
                   className="bg-primary h-1.5 rounded-full transition-all"
-                  style={{ width: `${stats.participation.occupancyRate}%` }}
+                  style={{ width: `${stats.participation?.occupancyRate || 0}%` }}
                 />
               </div>
             </div>
           )}
         </div>
 
-        {stats.event.hasCheckIn && (
+        {stats.event?.hasCheckIn && (
           <div className="bg-surface-dark border border-border-dark rounded-lg p-6 hover:border-green-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <p className="text-gray-400 text-sm">Check-ins</p>
               <span className="material-symbols-outlined text-green-400">how_to_reg</span>
             </div>
-            <p className="text-3xl font-bold text-green-400 mt-2">{stats.participation.checkedIn}</p>
-            <p className="text-xs text-gray-400 mt-1">{stats.participation.attendanceRate}% de presença</p>
+            <p className="text-3xl font-bold text-green-400 mt-2">{stats.participation?.checkedIn || 0}</p>
+            <p className="text-xs text-gray-400 mt-1">{stats.participation?.attendanceRate || 0}% de presença</p>
           </div>
         )}
 
@@ -115,8 +113,8 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <p className="text-gray-400 text-sm">Sugestões</p>
             <span className="material-symbols-outlined text-purple-400">lightbulb</span>
           </div>
-          <p className="text-3xl font-bold text-purple-400 mt-2">{stats.suggestions.total}</p>
-          <p className="text-xs text-gray-400 mt-1">{stats.suggestions.totalVotes} votos totais</p>
+          <p className="text-3xl font-bold text-purple-400 mt-2">{stats.suggestions?.total || 0}</p>
+          <p className="text-xs text-gray-400 mt-1">{stats.suggestions?.totalVotes || 0} votos totais</p>
         </div>
 
         <div className="bg-surface-dark border border-border-dark rounded-lg p-6 hover:border-blue-500/50 transition-colors">
@@ -124,9 +122,9 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <p className="text-gray-400 text-sm">Enquetes</p>
             <span className="material-symbols-outlined text-blue-400">poll</span>
           </div>
-          <p className="text-3xl font-bold text-blue-400 mt-2">{stats.polls.total}</p>
+          <p className="text-3xl font-bold text-blue-400 mt-2">{stats.polls?.total || 0}</p>
           <p className="text-xs text-gray-400 mt-1">
-            {stats.polls.results.reduce((sum, p) => sum + p.totalVotes, 0)} votos totais
+            {stats.polls?.results?.reduce((sum: number, p: any) => sum + (p.totalVotes || 0), 0) || 0} votos totais
           </p>
         </div>
       </div>
@@ -141,36 +139,36 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
           <div className="p-4 bg-background-dark rounded-lg">
             <p className="text-sm text-gray-400 mb-1">Taxa de Conversão</p>
             <p className="text-2xl font-bold text-white">
-              {stats.participation.total > 0 
-                ? Math.round((stats.participation.confirmed / stats.participation.total) * 100)
+              {(stats.participation?.total || 0) > 0 
+                ? Math.round(((stats.participation?.confirmed || 0) / (stats.participation?.total || 1)) * 100)
                 : 0}%
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {stats.participation.confirmed} confirmaram de {stats.participation.total} respostas
+              {stats.participation?.confirmed || 0} confirmaram de {stats.participation?.total || 0} respostas
             </p>
           </div>
 
           <div className="p-4 bg-background-dark rounded-lg">
             <p className="text-sm text-gray-400 mb-1">Taxa de Aprovação de Sugestões</p>
             <p className="text-2xl font-bold text-white">
-              {stats.suggestions.total > 0 
-                ? Math.round((stats.suggestions.approved / stats.suggestions.total) * 100)
+              {(stats.suggestions?.total || 0) > 0 
+                ? Math.round(((stats.suggestions?.approved || 0) / (stats.suggestions?.total || 1)) * 100)
                 : 0}%
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {stats.suggestions.approved} aprovadas de {stats.suggestions.total}
+              {stats.suggestions?.approved || 0} aprovadas de {stats.suggestions?.total || 0}
             </p>
           </div>
 
           <div className="p-4 bg-background-dark rounded-lg">
             <p className="text-sm text-gray-400 mb-1">Média de Votos por Enquete</p>
             <p className="text-2xl font-bold text-white">
-              {stats.polls.total > 0 
-                ? Math.round(stats.polls.results.reduce((sum, p) => sum + p.totalVotes, 0) / stats.polls.total)
+              {(stats.polls?.total || 0) > 0 
+                ? Math.round((stats.polls?.results?.reduce((sum: number, p: any) => sum + (p.totalVotes || 0), 0) || 0) / (stats.polls?.total || 1))
                 : 0}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {stats.polls.results.reduce((sum, p) => sum + p.totalVotes, 0)} votos em {stats.polls.total} enquetes
+              {stats.polls?.results?.reduce((sum: number, p: any) => sum + (p.totalVotes || 0), 0) || 0} votos em {stats.polls?.total || 0} enquetes
             </p>
           </div>
         </div>
@@ -190,7 +188,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1a2c20', border: '1px solid #2d4a37' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(value, name, props) => [value, props.payload.content]}
+                formatter={(value: any, name: any, props: any) => [value, props.payload.content]}
               />
               <Bar dataKey="votes" fill="#a855f7" radius={[8, 8, 0, 0]} />
             </BarChart>
@@ -199,11 +197,11 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
       )}
 
       {/* Detalhes de Sugestões */}
-      {stats.suggestions.topSuggestions.length > 0 && (
+      {stats.suggestions?.topSuggestions?.length > 0 && (
         <div className="bg-surface-dark border border-border-dark rounded-lg p-6">
           <h3 className="text-lg font-bold text-white mb-4">Top 5 Sugestões</h3>
           <div className="space-y-3">
-            {stats.suggestions.topSuggestions.map((suggestion, index) => (
+            {stats.suggestions.topSuggestions.map((suggestion: any, index: number) => (
               <div key={index} className="flex items-start gap-3 p-3 bg-background-dark rounded-lg">
                 <span className="text-2xl font-bold text-primary">{index + 1}</span>
                 <div className="flex-1">
@@ -219,20 +217,20 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
       )}
 
       {/* Resultados de Enquetes */}
-      {stats.polls.results.length > 0 && (
+      {stats.polls?.results?.length > 0 && (
         <div className="bg-surface-dark border border-border-dark rounded-lg p-6">
           <div className="flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-blue-400">poll</span>
             <h3 className="text-lg font-bold text-white">Resultados das Enquetes</h3>
           </div>
           <div className="space-y-6">
-            {stats.polls.results.map((poll) => (
-              <div key={poll._id} className="space-y-3 p-4 bg-background-dark rounded-lg border border-border-dark/50">
+            {stats.polls.results.map((poll: any) => (
+              <div key={poll._id || poll.id} className="space-y-3 p-4 bg-background-dark rounded-lg border border-border-dark/50">
                 <p className="font-bold text-white text-lg">{poll.question}</p>
                 <div className="flex items-center gap-4 text-sm text-gray-400">
                   <span className="flex items-center gap-1">
                     <span className="material-symbols-outlined text-base">how_to_vote</span>
-                    {poll.totalVotes} votos totais
+                    {poll.totalVotes || 0} votos totais
                   </span>
                   {poll.winner && (
                     <span className="flex items-center gap-1 text-yellow-400">
@@ -242,9 +240,9 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
                   )}
                 </div>
                 <div className="space-y-2">
-                  {poll.options.map((option, idx) => {
-                    const percentage = poll.totalVotes > 0 
-                      ? Math.round((option.votesCount / poll.totalVotes) * 100)
+                  {poll.options?.map((option: any, idx: number) => {
+                    const percentage = (poll.totalVotes || 0) > 0 
+                      ? Math.round(((option.votesCount || 0) / (poll.totalVotes || 1)) * 100)
                       : 0;
                     const isWinner = poll.winner?.text === option.optionText;
                     
@@ -255,7 +253,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
                             {isWinner && <span className="material-symbols-outlined text-sm">emoji_events</span>}
                             {option.optionText}
                           </span>
-                          <span className="text-gray-400 font-semibold">{option.votesCount} ({percentage}%)</span>
+                          <span className="text-gray-400 font-semibold">{option.votesCount || 0} ({percentage}%)</span>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                           <div 
@@ -275,24 +273,24 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
 
       {/* Métricas Adicionais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {stats.event.hasCheckIn && (
+        {stats.event?.hasCheckIn && (
           <div className="bg-surface-dark border border-border-dark rounded-lg p-6 hover:border-red-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <p className="text-gray-400 text-sm">No-Shows</p>
               <span className="material-symbols-outlined text-red-400">person_off</span>
             </div>
-            <p className="text-2xl font-bold text-red-400">{stats.participation.noShows}</p>
+            <p className="text-2xl font-bold text-red-400">{stats.participation?.noShows || 0}</p>
             <p className="text-xs text-gray-400 mt-1">Confirmaram mas não apareceram</p>
           </div>
         )}
 
-        {stats.waitlist.total > 0 && (
+        {(stats.waitlist?.total || 0) > 0 && (
           <div className="bg-surface-dark border border-border-dark rounded-lg p-6 hover:border-yellow-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
               <p className="text-gray-400 text-sm">Lista de Espera</p>
               <span className="material-symbols-outlined text-yellow-400">schedule</span>
             </div>
-            <p className="text-2xl font-bold text-yellow-400">{stats.waitlist.total}</p>
+            <p className="text-2xl font-bold text-yellow-400">{stats.waitlist?.total || 0}</p>
             <p className="text-xs text-gray-400 mt-1">Pessoas aguardando vaga</p>
           </div>
         )}
@@ -302,9 +300,9 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <p className="text-gray-400 text-sm">Sugestões Aprovadas</p>
             <span className="material-symbols-outlined text-purple-400">check_circle</span>
           </div>
-          <p className="text-2xl font-bold text-purple-400">{stats.suggestions.approved}</p>
+          <p className="text-2xl font-bold text-purple-400">{stats.suggestions?.approved || 0}</p>
           <p className="text-xs text-gray-400 mt-1">
-            {stats.suggestions.answered} respondidas
+            {stats.suggestions?.answered || 0} respondidas
           </p>
         </div>
 
@@ -314,8 +312,8 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
             <span className="material-symbols-outlined text-blue-400">psychology</span>
           </div>
           <p className="text-2xl font-bold text-blue-400">
-            {stats.participation.confirmed > 0 && stats.polls.total > 0
-              ? Math.round((stats.polls.results.reduce((sum, p) => sum + p.totalVotes, 0) / (stats.participation.confirmed * stats.polls.total)) * 100)
+            {(stats.participation?.confirmed || 0) > 0 && (stats.polls?.total || 0) > 0
+              ? Math.round(((stats.polls?.results?.reduce((sum: number, p: any) => sum + (p.totalVotes || 0), 0) || 0) / ((stats.participation?.confirmed || 1) * (stats.polls?.total || 1))) * 100)
               : 0}%
           </p>
           <p className="text-xs text-gray-400 mt-1">Taxa média de resposta</p>
@@ -323,7 +321,7 @@ const EventStats: React.FC<EventStatsProps> = ({ eventId }) => {
       </div>
 
       {/* Mensagem para eventos sem dados */}
-      {stats.participation.total === 0 && stats.suggestions.total === 0 && stats.polls.total === 0 && (
+      {(stats.participation?.total || 0) === 0 && (stats.suggestions?.total || 0) === 0 && (stats.polls?.total || 0) === 0 && (
         <div className="bg-surface-dark border border-border-dark rounded-lg p-8 text-center">
           <p className="text-gray-400 text-lg">Nenhum dado disponível ainda</p>
           <p className="text-gray-500 text-sm mt-2">As estatísticas aparecerão quando houver participações, sugestões ou enquetes</p>

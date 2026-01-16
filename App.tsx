@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -9,8 +9,31 @@ import CreateEvent from './components/CreateEvent';
 import EventManagement from './components/EventManagement';
 import PublicEvent from './components/PublicEvent';
 import ProjectionView from './components/ProjectionView';
+import queryClient from './src/lib/queryClient';
+import { useAuthSetup } from './src/lib/hooks';
+
+// Componente para configurar auth e rotas protegidas
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isLoaded, isSignedIn } = useAuth();
+  
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center">
+        <div className="text-gray-400">Carregando...</div>
+      </div>
+    );
+  }
+  
+  if (!isSignedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 const AppContent: React.FC = () => {
+  // Setup auth token provider for API
+  useAuthSetup();
 
   return (
     <BrowserRouter>
@@ -34,41 +57,41 @@ const AppContent: React.FC = () => {
         <Route
           path="/dashboard"
           element={
-            <Authenticated>
+            <ProtectedRoute>
               <Dashboard />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/create-event"
           element={
-            <Authenticated>
+            <ProtectedRoute>
               <CreateEvent />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/edit-event/:eventId"
           element={
-            <Authenticated>
+            <ProtectedRoute>
               <CreateEvent />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/manage/:shareCode"
           element={
-            <Authenticated>
+            <ProtectedRoute>
               <EventManagement />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/projection/:shareCode"
           element={
-            <Authenticated>
+            <ProtectedRoute>
               <ProjectionView />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
 
@@ -84,7 +107,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <Toaster 
         position="top-right"
         reverseOrder={false}
@@ -112,7 +135,7 @@ const App: React.FC = () => {
         }}
       />
       <AppContent />
-    </>
+    </QueryClientProvider>
   );
 };
 

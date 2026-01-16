@@ -1,83 +1,99 @@
-# 🎉 EventPulse
+# 🎉 EventPulse v2.0
 
 > Plataforma completa de gerenciamento de eventos com engajamento em tempo real
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Convex](https://img.shields.io/badge/Convex-FF6B6B?logo=convex&logoColor=white)](https://www.convex.dev/)
+[![Neon](https://img.shields.io/badge/Neon-00E5CC?logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
 
 ## 📋 Sobre o Projeto
 
 EventPulse é uma plataforma moderna e completa para criação e gerenciamento de eventos, permitindo interação em tempo real com participantes através de confirmações de presença, sugestões, enquetes e muito mais.
 
-### ✨ Funcionalidades Principais
+### 🆕 Novidades da v2.0
+- **Migração para Neon + Prisma** - Banco de dados PostgreSQL serverless
+- **API REST com Hono** - Backend leve e performático
+- **WebSocket nativo** - Atualizações em tempo real
+- **React Query** - Cache inteligente e estado do servidor
+
+## 🏗️ Arquitetura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Vite + React)                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ React Query │  │  WebSocket  │  │    Clerk Auth       │  │
+│  │   (Cache)   │  │   Client    │  │    (Tokens)         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                         │                 │
+                         ▼                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Backend (Hono API)                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  REST API   │  │  WebSocket  │  │   JWT Validation    │  │
+│  │   Routes    │  │   Server    │  │     (Clerk)         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                         │                                    │
+│                    ┌────┴────┐                              │
+│                    │ Prisma  │                              │
+│                    │   ORM   │                              │
+│                    └────┬────┘                              │
+└─────────────────────────┼───────────────────────────────────┘
+                          │
+                          ▼
+              ┌───────────────────────┐
+              │    Neon PostgreSQL    │
+              │   (Serverless DB)     │
+              └───────────────────────┘
+```
+
+### ✨ Funcionalidades
 
 #### 🎯 Gerenciamento de Eventos
-- ✅ **Criação de Eventos** - Interface intuitiva para criar eventos online ou presenciais
-- 📊 **Dashboard com Abas** - Organize eventos por status (Publicados, Ao Vivo, Encerrados)
-- 🔄 **Status Dinâmicos** - Rascunho → Publicado → Ao Vivo → Encerrado
-- 📱 **Links Compartilháveis** - Gere links únicos para cada evento
-- 🎨 **Páginas Públicas** - Página dedicada para cada evento
+- ✅ Criação de eventos online ou presenciais
+- 📊 Dashboard com abas (Publicados, Ao Vivo, Encerrados)
+- 🔄 Status dinâmicos com workflow completo
+- 📱 Links compartilháveis únicos
 
 #### 👥 Gestão de Participantes
-- ✅ **Confirmações de Presença** - Sistema "Vou", "Talvez", "Não vou"
-- 🚫 **Limite de Participantes** - Controle de vagas com bloqueio automático
-- 📋 **Lista de Espera Inteligente** - Captura de leads quando evento lota
-- 📞 **Integração WhatsApp** - Botões diretos para contato
-- ✓ **Check-in Digital** - Marque presença dos participantes
-- 📥 **Exportação CSV** - Exporte lista de participantes
+- ✅ Confirmações de presença (Vou, Talvez, Não vou)
+- 🚫 Limite de participantes com bloqueio automático
+- 📋 Lista de espera inteligente
+- ✓ Check-in digital com QR code
 
 #### 💡 Engajamento em Tempo Real
-- 💭 **Mural de Sugestões** - Participantes enviam perguntas/sugestões
-- 👍 **Sistema de Votação** - Vote em sugestões (um voto por pessoa)
-- 📊 **Enquetes Ao Vivo** - Crie enquetes com resultados em tempo real
-- ✅ **Moderação de Conteúdo** - Aprove/rejeite sugestões antes de publicar
-- 🎭 **Sugestões Anônimas** - Opção para participantes serem anônimos
+- 💭 Mural de sugestões com votação
+- 📊 Enquetes ao vivo com resultados instantâneos
+- ✅ Moderação de conteúdo
+- 🎭 Opção de anonimato
 
-#### 🔐 Controles de Acesso
-- 🔒 **Restrição de Interação** - Apenas confirmados podem interagir
-- 🗳️ **Voto Único em Enquetes** - Enquete some após votar
-- 👤 **Autenticação com Clerk** - Login seguro com múltiplos provedores
-- 🏢 **Sistema de Organizações** - Gerencie eventos por organização
-
-#### 📈 Lista de Espera & Leads
-- 📋 **Captura Automática** - Modal de waitlist quando evento lota
-- 📞 **Dados de Contato** - Nome completo + WhatsApp
-- 💼 **Dashboard de Leads** - Visualize todos os leads por organização
-- 📊 **Aba Dedicada** - Seção exclusiva para leads no dashboard
-
-#### 🎨 Interface & UX
-- 🌙 **Modo Escuro** - Design moderno e elegante
-- 📱 **Responsivo** - Funciona perfeitamente em mobile
-- ⚡ **Tempo Real** - Atualizações instantâneas com Convex
-- 🔔 **Feedback Visual** - Mensagens claras para cada ação
-- ⬅️ **Navegação Intuitiva** - Botão voltar e navegação fluida
-
-## 🚀 Tecnologias Utilizadas
+## 🚀 Tecnologias
 
 ### Frontend
-- **React 18** - Biblioteca UI
-- **TypeScript** - Tipagem estática
-- **Vite** - Build tool ultra-rápido
-- **React Router** - Navegação SPA
-- **Tailwind CSS** - Estilização utility-first
+- **React 18** + **TypeScript**
+- **Vite** - Build tool
+- **React Query** - Estado do servidor
+- **Tailwind CSS** - Estilização
 
-### Backend & Database
-- **Convex** - Backend-as-a-Service com tempo real
-- **Clerk** - Autenticação e gerenciamento de usuários
+### Backend
+- **Hono** - Framework web ultrarrápido
+- **Prisma** - ORM type-safe
+- **WebSocket (ws)** - Tempo real
+- **Clerk** - Autenticação JWT
 
-### Deploy
-- **Vercel** - Deploy do frontend
-- **Convex Cloud** - Backend e database
+### Database
+- **Neon PostgreSQL** - Serverless com scale-to-zero
 
 ## 📦 Instalação
 
 ### Pré-requisitos
-- Node.js 18+ 
+- Node.js 18+
 - npm ou yarn
-- Conta no Convex
-- Conta no Clerk
+- Conta no [Neon](https://neon.tech)
+- Conta no [Clerk](https://clerk.com)
 
 ### Passo a Passo
 
@@ -87,101 +103,188 @@ git clone https://github.com/in100tiva/event-pulse1.git
 cd event-pulse1
 ```
 
-2. **Instale as dependências**
-```bash
-npm install
-```
+2. **Configure as variáveis de ambiente**
 
-3. **Configure as variáveis de ambiente**
-```bash
-# Crie o arquivo .env.local na raiz do projeto
+Crie o arquivo `.env` na raiz:
+```env
+# Neon Database
+DATABASE_URL="postgresql://user:pass@host.neon.tech/neondb?sslmode=require"
+DIRECT_URL="postgresql://user:pass@host.neon.tech/neondb?sslmode=require"
+
+# API
+PORT=3001
+NODE_ENV=development
+
+# Frontend
+VITE_API_URL=http://localhost:3001
+VITE_WS_URL=ws://localhost:3001
+
+# Clerk
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-VITE_CONVEX_URL=https://...convex.cloud
+CLERK_SECRET_KEY=sk_test_...
 ```
 
-4. **Configure o Convex**
+3. **Instale as dependências e configure o banco**
 ```bash
-npx convex dev
+# Instala todas as dependências
+npm run setup
+
+# Ou manualmente:
+npm install
+cd backend && npm install && cd ..
+npx prisma db push
 ```
 
-5. **Inicie o servidor de desenvolvimento**
+4. **Inicie o desenvolvimento**
 ```bash
-npm run dev
+# Inicia frontend + backend simultaneamente
+npm run dev:all
+
+# Ou separadamente:
+npm run dev          # Frontend (porta 3000)
+npm run dev:api      # Backend (porta 3001)
 ```
 
-Acesse: `http://localhost:3000`
+5. **Acesse o projeto**
+- Frontend: http://localhost:3000
+- API: http://localhost:3001
+- WebSocket: ws://localhost:3001/ws
+- Health check: http://localhost:3001/health
 
-## 📚 Documentação Adicional
+## 📁 Estrutura do Projeto
 
-- [📖 Início Rápido](docs/INICIO_RAPIDO.md)
-- [🔐 Configuração Clerk](docs/CLERK_SETUP.md)
-- [🚀 Deploy na Vercel](docs/RESUMO_DEPLOY.md)
-- [✅ Checklist Pré-Deploy](docs/PRE_DEPLOY_CHECKLIST.md)
-- [🧪 Testes de Organização](docs/TESTE_ORGANIZACOES.md)
+```
+projeto-01/
+├── backend/               # API Hono + Prisma
+│   ├── src/
+│   │   ├── index.ts       # Entry point
+│   │   ├── routes/        # Rotas da API
+│   │   ├── middleware/    # Auth, Error, Logger
+│   │   ├── websocket/     # WebSocket server
+│   │   └── lib/           # Prisma client, utils
+│   └── package.json
+│
+├── prisma/
+│   └── schema.prisma      # Schema do banco
+│
+├── components/            # Componentes React
+├── src/
+│   ├── lib/
+│   │   ├── api.ts         # Cliente API (axios)
+│   │   ├── hooks.ts       # React Query hooks
+│   │   ├── websocket.ts   # Cliente WebSocket
+│   │   └── types.ts       # TypeScript types
+│   └── utils/
+│
+├── scripts/
+│   ├── migrate-data.ts    # Migração do Convex
+│   └── verify-migration.ts
+│
+└── docs/                  # Documentação
+```
 
-## 🤝 Como Contribuir
+## 🔧 Scripts Disponíveis
 
-EventPulse é um projeto open-source e **adoramos contribuições**! 
+```bash
+# Frontend
+npm run dev              # Inicia o Vite
+npm run build            # Build de produção
+npm run preview          # Preview do build
 
-### 💎 Benefícios para Contribuidores
-- 🌟 Seu nome na seção **Equipe & Desenvolvedores**
-- 📈 Portfólio com projeto real em produção
-- 🎓 Aprendizado com código TypeScript + React moderno
-- 🤝 Networking com outros desenvolvedores
+# Backend
+npm run dev:api          # Inicia API com hot reload
+npm run dev:all          # Frontend + Backend juntos
 
-### Primeiros Passos
-1. Leia o [Guia de Contribuição](CONTRIBUTING.md)
-2. Veja as [Issues abertas](https://github.com/in100tiva/event-pulse1/issues)
-3. Leia o [Código de Conduta](CODE_OF_CONDUCT.md)
-4. Faça um fork e comece a contribuir!
+# Database
+npm run db:generate      # Gera Prisma Client
+npm run db:push          # Sync schema → database
+npm run db:migrate       # Cria migration
+npm run db:studio        # Abre Prisma Studio
 
-## 👥 Equipe & Desenvolvedores
+# Setup
+npm run setup            # Instala tudo e gera Prisma
+```
 
-### 👨‍💻 Criador Principal
-**Luan Oliveira dos Santos** - Idealizador e desenvolvedor principal
+## 📚 API Endpoints
+
+### Autenticação
+Todas as rotas `/api/*` requerem Bearer token do Clerk.
+
+### Users
+- `POST /api/users/sync` - Sincronizar usuário
+- `GET /api/users/me` - Usuário atual
+- `GET /api/users/organizations` - Organizações do usuário
+
+### Events
+- `GET /api/events?organizationId=X` - Listar eventos
+- `GET /api/events/:id` - Detalhes do evento
+- `GET /api/events/public/:shareCode` - Evento público
+- `POST /api/events` - Criar evento
+- `PATCH /api/events/:id` - Atualizar
+- `DELETE /api/events/:id` - Soft delete
+
+### Attendance
+- `GET /api/events/:id/attendance` - Lista de confirmações
+- `POST /api/events/:id/attendance` - Confirmar presença
+- `PATCH /api/attendance/:id/checkin` - Fazer check-in
+
+### Suggestions
+- `GET /api/events/:id/suggestions` - Listar sugestões
+- `POST /api/events/:id/suggestions` - Criar sugestão
+- `POST /api/suggestions/:id/vote` - Votar
+
+### Polls
+- `GET /api/events/:id/polls` - Listar enquetes
+- `GET /api/events/:id/polls/active` - Enquete ativa
+- `POST /api/events/:id/polls` - Criar enquete
+- `POST /api/polls/:id/vote` - Votar
+
+### WebSocket Events
+```typescript
+// Cliente → Servidor
+{ event: 'join:event', data: { eventId } }
+{ event: 'leave:event', data: { eventId } }
+
+// Servidor → Cliente
+{ event: 'suggestion:new', data: { ... } }
+{ event: 'suggestion:vote', data: { suggestionId, votesCount } }
+{ event: 'poll:activated', data: { ... } }
+{ event: 'poll:vote', data: { ... } }
+```
+
+## 🔒 Segurança
+
+- JWT validation via Clerk
+- CORS configurado por ambiente
+- Soft deletes para auditoria
+- Rate limiting (configurável)
+- Validação Zod em todas as rotas
+
+## 📊 Limites do Plano Free (Neon)
+
+| Recurso | Limite |
+|---------|--------|
+| CU-hours | 100/mês |
+| Storage | 0.5 GB |
+| Bandwidth | 5 GB/mês |
+| Branches | 10 |
+
+## 🤝 Contribuição
+
+1. Fork o projeto
+2. Crie sua branch (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 👥 Equipe
+
+**Luan Oliveira dos Santos** - Criador e desenvolvedor principal
 - GitHub: [@in100tiva](https://github.com/in100tiva)
-
-### 🌟 Contribuidores
-
-Seja o primeiro a contribuir e ter seu nome aqui! 🎉
-
-<!--
-Adicione seu nome após sua primeira contribuição ser aceita:
-- **[Seu Nome](seu-github)** - Descrição da contribuição
--->
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
-```
-MIT License
-
-Copyright (c) 2025 Luan Oliveira dos Santos
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
-## 🙏 Agradecimentos
-
-- [Convex](https://www.convex.dev/) - Backend poderoso e em tempo real
-- [Clerk](https://clerk.com/) - Autenticação sem complicação
-- [Vercel](https://vercel.com/) - Deploy simplificado
-- Todos os contribuidores que fazem este projeto melhor! ❤️
-
-## 📞 Contato & Suporte
-
-- 🐛 **Bugs**: Abra uma [issue](https://github.com/in100tiva/event-pulse1/issues)
-- 💡 **Ideias**: Compartilhe nas [discussions](https://github.com/in100tiva/event-pulse1/discussions)
-- 📧 **Email**: Contate através do GitHub
+Este projeto está sob a licença MIT. Veja [LICENSE](LICENSE) para detalhes.
 
 ---
 

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { showToast } from '../src/utils/toast';
+import {
+  useEventByShareCode,
+  useApprovedSuggestions,
+  useActivePoll,
+  usePollsByEvent,
+  useCreatePoll,
+  useTogglePollActive,
+} from '../src/lib/hooks';
 
 // Componente de Contador Regressivo
 const PollTimer: React.FC<{ expiresAt: number }> = ({ expiresAt }) => {
@@ -74,34 +80,20 @@ const ProjectionView: React.FC = () => {
   const [showResults, setShowResults] = useState(true);
   const [timerDuration, setTimerDuration] = useState<number | undefined>(undefined);
 
-  // Buscar dados reais do Convex
-  const event = useQuery(
-    api.events.getByShareCode,
-    shareCode ? { shareLinkCode: shareCode } : 'skip'
-  );
+  // React Query hooks
+  const { data: event, isLoading } = useEventByShareCode(shareCode);
+  const eventId = event?.id || event?._id;
   
-  const suggestions = useQuery(
-    api.suggestions.getApprovedByEvent,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  const activePoll = useQuery(
-    api.polls.getActivePoll,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  const allPolls = useQuery(
-    api.polls.getByEvent,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  // Mutations
-  const createPoll = useMutation(api.polls.create);
-  const togglePollActive = useMutation(api.polls.toggleActive);
+  const { data: suggestions } = useApprovedSuggestions(eventId);
+  const { data: activePoll, refetch: refetchPoll } = useActivePoll(eventId);
+  const { data: allPolls } = usePollsByEvent(eventId);
+  
+  const createPollMutation = useCreatePoll();
+  const togglePollActiveMutation = useTogglePollActive();
 
   // Handlers
   const handleCreatePoll = async () => {
-    if (!event || !pollQuestion.trim()) {
+    if (!eventId || !pollQuestion.trim()) {
       showToast.warning('Preencha a pergunta da enquete');
       return;
     }
@@ -113,8 +105,8 @@ const ProjectionView: React.FC = () => {
     }
 
     try {
-      await createPoll({
-        eventId: event._id,
+      await createPollMutation.mutateAsync({
+        eventId,
         question: pollQuestion,
         options: validOptions,
         allowMultipleChoice: allowMultiple,
@@ -163,7 +155,7 @@ const ProjectionView: React.FC = () => {
   };
 
   // Loading state
-  if (!event) {
+  if (isLoading || !event) {
     return (
       <div className="bg-background-dark min-h-screen flex items-center justify-center">
         <div className="text-white text-lg">Carregando evento...</div>
@@ -234,21 +226,24 @@ const ProjectionView: React.FC = () => {
               <h1 className="tracking-light text-center text-5xl font-bold leading-tight text-white mb-8">Sugestões mais votadas</h1>
               <div className="w-full grid grid-cols-1 gap-6">
                 {suggestions && suggestions.length > 0 ? (
-                  suggestions.slice(0, 5).map((suggestion, index) => (
-                    <div key={suggestion._id} className="flex items-center gap-6 rounded-xl bg-surface-dark p-8 border border-border-dark shadow-2xl">
-                      <p className="text-7xl font-black text-primary">{index + 1}</p>
-                      <div className="flex-1">
-                        <p className="text-4xl font-bold leading-tight text-white">{suggestion.content}</p>
-                        <div className="mt-4 flex items-center gap-8 text-2xl text-text-secondary-dark">
-                          <p>{suggestion.isAnonymous ? 'Anônimo' : suggestion.authorName || 'Participante'}</p>
-                          <div className="flex items-center gap-2 text-primary">
-                            <span className="material-symbols-outlined text-3xl">thumb_up</span>
-                            <p className="font-bold">{suggestion.votesCount} votos</p>
+                  suggestions.slice(0, 5).map((suggestion, index) => {
+                    const suggId = suggestion.id || suggestion._id || '';
+                    return (
+                      <div key={suggId} className="flex items-center gap-6 rounded-xl bg-surface-dark p-8 border border-border-dark shadow-2xl">
+                        <p className="text-7xl font-black text-primary">{index + 1}</p>
+                        <div className="flex-1">
+                          <p className="text-4xl font-bold leading-tight text-white">{suggestion.content}</p>
+                          <div className="mt-4 flex items-center gap-8 text-2xl text-text-secondary-dark">
+                            <p>{suggestion.isAnonymous ? 'Anônimo' : suggestion.authorName || 'Participante'}</p>
+                            <div className="flex items-center gap-2 text-primary">
+                              <span className="material-symbols-outlined text-3xl">thumb_up</span>
+                              <p className="font-bold">{suggestion.votesCount} votos</p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-20 text-text-secondary-dark">
                     <p className="text-3xl">Nenhuma sugestão aprovada ainda</p>
@@ -274,12 +269,13 @@ const ProjectionView: React.FC = () => {
 
                    <div className="flex flex-col gap-6">
                       {activePoll.options?.map((option) => {
+                        const optId = option.id || option._id || '';
                         const percentage = activePoll.totalVotes > 0 
                           ? Math.round((option.votesCount / activePoll.totalVotes) * 100) 
                           : 0;
                         
                         return (
-                          <div key={option._id} className="relative w-full h-24 bg-surface-dark rounded-xl border border-border-dark overflow-hidden flex items-center px-8">
+                          <div key={optId} className="relative w-full h-24 bg-surface-dark rounded-xl border border-border-dark overflow-hidden flex items-center px-8">
                              <div className="absolute left-0 top-0 h-full bg-primary/20 transition-all duration-1000 ease-out" style={{ width: `${percentage}%` }}></div>
                              <div className="relative z-10 w-full flex justify-between items-center">
                                 <span className="text-3xl font-bold text-white">{option.optionText}</span>
@@ -293,7 +289,11 @@ const ProjectionView: React.FC = () => {
                    
                    <div className="flex justify-center gap-4 mt-8">
                      <button
-                       onClick={() => togglePollActive({ id: activePoll._id, isActive: false })}
+                       onClick={() => togglePollActiveMutation.mutate({ 
+                         id: activePoll.id || activePoll._id || '', 
+                         isActive: false,
+                         eventId
+                       })}
                        className="px-6 py-3 bg-red-900/50 hover:bg-red-800/50 text-red-300 rounded-lg font-bold transition-colors"
                      >
                        Encerrar Enquete
@@ -308,20 +308,27 @@ const ProjectionView: React.FC = () => {
                    {allPolls && allPolls.length > 0 && (
                      <div className="mt-8 space-y-4">
                        <h3 className="text-2xl text-white mb-4">Enquetes Disponíveis:</h3>
-                       {allPolls.map((poll) => (
-                         <div key={poll._id} className="bg-surface-dark border border-border-dark rounded-lg p-4 flex justify-between items-center">
-                           <div className="text-left">
-                             <p className="text-white font-bold">{poll.question}</p>
-                             <p className="text-sm text-gray-400">{poll.totalVotes} votos</p>
+                       {allPolls.map((poll) => {
+                         const pollId = poll.id || poll._id || '';
+                         return (
+                           <div key={pollId} className="bg-surface-dark border border-border-dark rounded-lg p-4 flex justify-between items-center">
+                             <div className="text-left">
+                               <p className="text-white font-bold">{poll.question}</p>
+                               <p className="text-sm text-gray-400">{poll.totalVotes} votos</p>
+                             </div>
+                             <button
+                               onClick={() => togglePollActiveMutation.mutate({ 
+                                 id: pollId, 
+                                 isActive: true,
+                                 eventId
+                               })}
+                               className="px-4 py-2 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors"
+                             >
+                               Ativar
+                             </button>
                            </div>
-                           <button
-                             onClick={() => togglePollActive({ id: poll._id, isActive: true })}
-                             className="px-4 py-2 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors"
-                           >
-                             Ativar
-                           </button>
-                         </div>
-                       ))}
+                         );
+                       })}
                      </div>
                    )}
                  </div>
@@ -460,7 +467,7 @@ const ProjectionView: React.FC = () => {
                 </button>
                 <button
                   onClick={handleCreatePoll}
-                  disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
+                  disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || createPollMutation.isPending}
                   className="px-6 py-3 bg-primary hover:bg-primary/90 text-background-dark rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Criar e Ativar Enquete

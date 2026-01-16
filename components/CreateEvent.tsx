@@ -1,28 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from 'convex/react';
 import { useOrganization, useUser } from '@clerk/clerk-react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
 import { showToast } from '../src/utils/toast';
+import {
+  useUserOrganizations,
+  useEvent,
+  useCreateEvent,
+  useUpdateEvent,
+  useSyncUser,
+  useSyncOrganization,
+  useCreateOrganization,
+  useOrganizationByClerkId,
+} from '../src/lib/hooks';
 
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useUser();
   const { organization } = useOrganization();
-  const createEvent = useMutation(api.events.create);
-  const updateEvent = useMutation(api.events.update);
-  const syncUser = useMutation(api.users.syncUser);
-  const syncOrganization = useMutation(api.users.syncOrganization);
-  const createOrganization = useMutation(api.users.createOrganization);
-  const userOrganizations = useQuery(api.users.getUserOrganizations);
   
-  // Buscar evento se estiver em modo de edição
-  const existingEvent = useQuery(
-    api.events.getById,
-    eventId ? { id: eventId as Id<"events"> } : "skip"
-  );
+  // React Query hooks
+  const syncUserMutation = useSyncUser();
+  const syncOrgMutation = useSyncOrganization();
+  const createOrgMutation = useCreateOrganization();
+  const createEventMutation = useCreateEvent();
+  const updateEventMutation = useUpdateEvent();
+  
+  const { data: userOrganizations, isLoading: isLoadingOrgs } = useUserOrganizations();
+  const { data: existingEvent } = useEvent(eventId);
+  
+  // Buscar organização do banco pelo clerkId se estivermos em uma organização do Clerk
+  const { data: currentClerkOrg } = useOrganizationByClerkId(organization?.id);
+  
+  // Usar a organização do Clerk (convertida para ID) ou a primeira organização do usuário
+  const currentOrgId = currentClerkOrg?.id || currentClerkOrg?._id || userOrganizations?.[0]?.id || userOrganizations?.[0]?._id;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -42,15 +53,6 @@ const CreateEvent: React.FC = () => {
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
 
-  // Buscar organização do Convex pelo clerkId se estivermos em uma organização do Clerk
-  const currentClerkOrg = useQuery(
-    api.users.getOrganizationByClerkId,
-    organization?.id ? { clerkId: organization.id } : "skip"
-  );
-  
-  // Usar a organização do Clerk (convertida para Convex ID) ou a primeira organização do usuário
-  const currentOrgId = currentClerkOrg?._id || userOrganizations?.[0]?._id;
-
   // Carregar dados do evento existente se estiver em modo de edição
   useEffect(() => {
     if (existingEvent) {
@@ -69,14 +71,13 @@ const CreateEvent: React.FC = () => {
       // Carregar prazo de confirmação se existir
       if (existingEvent.confirmationDeadline) {
         const deadlineDate = new Date(existingEvent.confirmationDeadline);
-        const dateStr = deadlineDate.toISOString().slice(0, 10); // YYYY-MM-DD
+        const dateStr = deadlineDate.toISOString().slice(0, 10);
         setConfirmationDeadlineDate(dateStr);
         
-        // Verificar se tem hora específica (não é 23:59:59)
         const hours = deadlineDate.getHours();
         const minutes = deadlineDate.getMinutes();
         if (hours !== 23 || minutes !== 59) {
-          const timeStr = deadlineDate.toTimeString().slice(0, 5); // HH:MM
+          const timeStr = deadlineDate.toTimeString().slice(0, 5);
           setConfirmationDeadlineTime(timeStr);
         }
       }
@@ -84,7 +85,6 @@ const CreateEvent: React.FC = () => {
       setAnonymousSuggestions(existingEvent.allowAnonymousSuggestions);
       setModeration(existingEvent.moderateSuggestions);
       
-      // Carregar configurações de check-in se existir
       if (existingEvent.requireCheckIn === true) {
         setRequireCheckIn(true);
         setCheckInWindowHours(String(existingEvent.checkInWindowHours || 4));
@@ -95,58 +95,27 @@ const CreateEvent: React.FC = () => {
     }
   }, [existingEvent]);
 
-  // Sincronizar usuário ao montar o componente (igual ao Dashboard)
-  React.useEffect(() => {
-    const syncUserData = async () => {
-      if (user && user.primaryEmailAddress?.emailAddress) {
-        try {
-          await syncUser({
-            clerkId: user.id,
-            email: user.primaryEmailAddress.emailAddress,
-            firstName: user.firstName || undefined,
-            lastName: user.lastName || undefined,
-            avatarUrl: user.imageUrl || undefined,
-          });
-        } catch (error) {
-          console.error('Erro ao sincronizar usuário:', error);
-          // Não mostra toast para não incomodar o usuário
-        }
-      }
-    };
-    
-    syncUserData();
+  // Sincronizar usuário ao montar o componente
+  useEffect(() => {
+    if (user && user.primaryEmailAddress?.emailAddress) {
+      syncUserMutation.mutate({
+        clerkId: user.id,
+        email: user.primaryEmailAddress.emailAddress,
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        avatarUrl: user.imageUrl || undefined,
+      });
+    }
   }, [user?.id, user?.primaryEmailAddress?.emailAddress]);
 
-  React.useEffect(() => {
-    const syncOrgData = async () => {
-      if (organization) {
-        try {
-          await syncOrganization({
-            clerkId: organization.id,
-            name: organization.name,
-          });
-        } catch (error) {
-          console.error('Erro ao sincronizar organização:', error);
-          // Não mostra toast para não incomodar o usuário
-        }
-      }
-    };
-    
-    syncOrgData();
+  useEffect(() => {
+    if (organization) {
+      syncOrgMutation.mutate({
+        clerkId: organization.id,
+        name: organization.name,
+      });
+    }
   }, [organization?.id, organization?.name]);
-
-  // Debug: Log para ver o estado das organizações
-  React.useEffect(() => {
-    console.log('=== DEBUG ORGANIZAÇÕES ===');
-    console.log('User:', user);
-    console.log('User ID (Clerk):', user?.id);
-    console.log('User Email:', user?.primaryEmailAddress?.emailAddress);
-    console.log('Clerk Organization:', organization);
-    console.log('User Organizations (Convex):', userOrganizations);
-    console.log('Current Clerk Org:', currentClerkOrg);
-    console.log('Current Org ID:', currentOrgId);
-    console.log('========================');
-  }, [user, organization, userOrganizations, currentClerkOrg, currentOrgId]);
 
   // Função para criar organização
   const handleCreateOrganization = async () => {
@@ -162,17 +131,15 @@ const CreateEvent: React.FC = () => {
 
     setIsSyncing(true);
     try {
-      // Criar nova organização
-      const orgId = await createOrganization({
+      await createOrgMutation.mutateAsync({
         name: newOrgName,
-        clerkId: `org_${Date.now()}_${user.id}`, // Gerar um ID único
+        clerkId: `org_${Date.now()}_${user.id}`,
       });
 
       showToast.success('Organização criada!');
       setShowCreateOrgModal(false);
       setNewOrgName('');
       
-      // Aguardar um pouco para as queries atualizarem
       setTimeout(() => {
         window.location.reload();
       }, 500);
@@ -193,8 +160,7 @@ const CreateEvent: React.FC = () => {
 
     setIsSyncing(true);
     try {
-      // Sincronizar usuário
-      await syncUser({
+      await syncUserMutation.mutateAsync({
         clerkId: user.id,
         email: user.primaryEmailAddress?.emailAddress || '',
         firstName: user.firstName || undefined,
@@ -202,16 +168,14 @@ const CreateEvent: React.FC = () => {
         avatarUrl: user.imageUrl || undefined,
       });
 
-      // Sincronizar organização se houver
       if (organization) {
-        await syncOrganization({
+        await syncOrgMutation.mutateAsync({
           clerkId: organization.id,
           name: organization.name,
         });
       }
 
       showToast.success('Sincronização concluída!');
-      // Aguardar um pouco para as queries atualizarem
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -229,12 +193,10 @@ const CreateEvent: React.FC = () => {
       return;
     }
 
-    // Se estiver editando, não precisa verificar organização
     const isEditing = !!eventId && !!existingEvent;
 
     if (!isEditing) {
-      // Aguardar o carregamento das organizações
-      if (userOrganizations === undefined) {
+      if (isLoadingOrgs) {
         showToast.info('Carregando organizações...');
         return;
       }
@@ -250,22 +212,18 @@ const CreateEvent: React.FC = () => {
     try {
       const timestamp = new Date(dateTime).getTime();
       
-      // Converter prazo de confirmação
       let confirmationDeadlineTimestamp: number | undefined = undefined;
       if (confirmationDeadlineDate) {
         let deadlineDateTime: Date;
         
         if (confirmationDeadlineTime) {
-          // Data + Hora específica
           deadlineDateTime = new Date(`${confirmationDeadlineDate}T${confirmationDeadlineTime}:00`);
         } else {
-          // Apenas data - usar final do dia (23:59:59)
           deadlineDateTime = new Date(`${confirmationDeadlineDate}T23:59:59`);
         }
         
         confirmationDeadlineTimestamp = deadlineDateTime.getTime();
         
-        // Validar que deadline é antes do evento
         if (confirmationDeadlineTimestamp >= timestamp) {
           showToast.error('Prazo deve ser antes do evento');
           setIsSubmitting(false);
@@ -274,9 +232,8 @@ const CreateEvent: React.FC = () => {
       }
       
       if (isEditing) {
-        // Atualizar evento existente
-        await updateEvent({
-          id: eventId as Id<"events">,
+        await updateEventMutation.mutateAsync({
+          id: eventId!,
           title,
           description: description || undefined,
           startDateTime: timestamp,
@@ -293,10 +250,9 @@ const CreateEvent: React.FC = () => {
         });
         
         showToast.success('Evento atualizado!');
-        navigate(`/manage/${existingEvent.shareLinkCode}`);
+        navigate(`/manage/${existingEvent!.shareLinkCode}`);
       } else {
-        // Criar novo evento
-        await createEvent({
+        await createEventMutation.mutateAsync({
           organizationId: currentOrgId!,
           title,
           description: description || undefined,
@@ -352,18 +308,13 @@ const CreateEvent: React.FC = () => {
             </div>
 
             {/* Debug Info */}
-            {!currentOrgId && (
+            {!currentOrgId && !isLoadingOrgs && (
               <div className="mx-4 mb-4 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg">
-                <p className="text-yellow-300 font-semibold mb-2">⚠️ Debug - Organizações não encontradas</p>
+                <p className="text-yellow-300 font-semibold mb-2">⚠️ Organizações não encontradas</p>
                 <div className="text-sm text-yellow-200/80 space-y-1">
                   <p>• Usuário logado: {user?.primaryEmailAddress?.emailAddress || 'Desconhecido'}</p>
-                  <p>• Clerk User ID: {user?.id || 'N/A'}</p>
                   <p>• Organização Clerk: {organization ? organization.name : 'Nenhuma'}</p>
-                  <p>• Total de organizações do usuário: {userOrganizations?.length || 0}</p>
-                  <p>• Status da query: {userOrganizations === undefined ? 'Carregando...' : 'Carregado'}</p>
-                  {userOrganizations && userOrganizations.length > 0 && (
-                    <p>• Organizações: {userOrganizations.map(o => o.name).join(', ')}</p>
-                  )}
+                  <p>• Total de organizações: {userOrganizations?.length || 0}</p>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button
@@ -381,9 +332,6 @@ const CreateEvent: React.FC = () => {
                     {isSyncing ? 'Sincronizando...' : '🔄 Forçar Sincronização'}
                   </button>
                 </div>
-                <p className="text-yellow-300 text-xs mt-3">
-                  💡 Verifique o console do navegador para mais detalhes. Se o problema persistir, clique em "Forçar Sincronização".
-                </p>
               </div>
             )}
 
@@ -481,7 +429,6 @@ const CreateEvent: React.FC = () => {
                             onChange={(e) => setConfirmationDeadlineDate(e.target.value)}
                             className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary/50 focus:border-primary border border-border-dark bg-[#1a2c20] h-14 placeholder:text-[#61896f] p-[15px] text-base font-normal leading-normal text-white" 
                             type="date" 
-                            placeholder="DD/MM/YYYY"
                           />
                         </div>
                         <div>
@@ -492,14 +439,11 @@ const CreateEvent: React.FC = () => {
                             disabled={!confirmationDeadlineDate}
                             className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary/50 focus:border-primary border border-border-dark bg-[#1a2c20] h-14 placeholder:text-[#61896f] p-[15px] text-base font-normal leading-normal text-white disabled:opacity-50 disabled:cursor-not-allowed" 
                             type="time" 
-                            placeholder="HH:MM"
                           />
                         </div>
                       </div>
                       <p className="text-xs text-gray-400 mt-2">
                         Se não definir horário, confirmações serão permitidas até 23:59 do dia limite.
-                        <br />
-                        Exemplo: Data 12/12/2025 + Horário 14:00 = prazo até 12/12/2025 às 14:00
                       </p>
                     </label>
                   </div>

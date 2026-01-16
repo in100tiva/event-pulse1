@@ -1,0 +1,273 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+generator clientBackend {
+  provider = "prisma-client-js"
+  output   = "../backend/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum EventStatus {
+  RASCUNHO
+  PUBLICADO
+  AO_VIVO
+  ENCERRADO
+
+  @@map("event_status")
+}
+
+enum AttendanceStatus {
+  VOU
+  TALVEZ
+  NAO_VOU
+
+  @@map("attendance_status")
+}
+
+enum SuggestionStatus {
+  PENDENTE
+  APROVADA
+  REJEITADA
+
+  @@map("suggestion_status")
+}
+
+enum OrganizationRole {
+  ADMIN
+  MEMBER
+
+  @@map("organization_role")
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique @map("clerk_id")
+  email     String   @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  organizationUsers OrganizationUser[]
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  clerkId   String   @unique @map("clerk_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  organizationUsers OrganizationUser[]
+  events            Event[]
+
+  @@index([clerkId])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+model OrganizationUser {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_users")
+}
+
+model Event {
+  id                        String      @id @default(cuid())
+  organizationId            String      @map("organization_id")
+  title                     String
+  description               String?     @db.Text
+  startDateTime             DateTime    @map("start_date_time")
+  isOnline                  Boolean     @default(false) @map("is_online")
+  location                  String?
+  participantLimit          Int?        @map("participant_limit")
+  confirmationDeadline      DateTime?   @map("confirmation_deadline")
+  requireCheckIn            Boolean     @default(false) @map("require_check_in")
+  checkInWindowHours        Int?        @map("check_in_window_hours")
+  checkInDeadlineMinutes    Int?        @map("check_in_deadline_minutes")
+  allowAnonymousSuggestions Boolean     @default(true) @map("allow_anonymous_suggestions")
+  moderateSuggestions       Boolean     @default(false) @map("moderate_suggestions")
+  status                    EventStatus @default(RASCUNHO)
+  shareLinkCode             String      @unique @map("share_link_code")
+  imageUrl                  String?     @map("image_url")
+  
+  // Campos desnormalizados para performance
+  participantsCount         Int         @default(0) @map("participants_count")
+  suggestionsCount          Int         @default(0) @map("suggestions_count")
+  
+  createdAt                 DateTime    @default(now()) @map("created_at")
+  updatedAt                 DateTime    @updatedAt @map("updated_at")
+  deletedAt                 DateTime?   @map("deleted_at")
+
+  organization              Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attendanceConfirmations   AttendanceConfirmation[]
+  suggestions               Suggestion[]
+  polls                     Poll[]
+  waitlist                  Waitlist[]
+
+  @@index([organizationId])
+  @@index([shareLinkCode])
+  @@index([organizationId, status, startDateTime(sort: Desc)])
+  @@index([startDateTime])
+  @@index([deletedAt])
+  @@map("events")
+}
+
+model AttendanceConfirmation {
+  id          String           @id @default(cuid())
+  eventId     String           @map("event_id")
+  name        String
+  email       String
+  status      AttendanceStatus @default(VOU)
+  checkedIn   Boolean          @default(false) @map("checked_in")
+  checkInTime DateTime?        @map("check_in_time")
+  noShow      Boolean?         @map("no_show")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+  @@index([eventId])
+  @@index([eventId, status])
+  @@map("attendance_confirmations")
+}
+
+model Suggestion {
+  id          String           @id @default(cuid())
+  eventId     String           @map("event_id")
+  content     String           @db.Text
+  authorName  String?          @map("author_name")
+  isAnonymous Boolean          @default(false) @map("is_anonymous")
+  status      SuggestionStatus @default(PENDENTE)
+  isAnswered  Boolean          @default(false) @map("is_answered")
+  votesCount  Int              @default(0) @map("votes_count")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  event Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  votes SuggestionVote[]
+
+  @@index([eventId])
+  @@index([eventId, status])
+  @@index([eventId, votesCount(sort: Desc)])
+  @@index([deletedAt])
+  @@map("suggestions")
+}
+
+model SuggestionVote {
+  id                    String   @id @default(cuid())
+  suggestionId          String   @map("suggestion_id")
+  participantIdentifier String   @map("participant_identifier")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  suggestion Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  @@unique([suggestionId, participantIdentifier])
+  @@index([suggestionId])
+  @@map("suggestion_votes")
+}
+
+model Poll {
+  id                       String    @id @default(cuid())
+  eventId                  String    @map("event_id")
+  question                 String    @db.Text
+  allowMultipleChoice      Boolean   @default(false) @map("allow_multiple_choice")
+  showResultsAutomatically Boolean   @default(true) @map("show_results_automatically")
+  isActive                 Boolean   @default(false) @map("is_active")
+  totalVotes               Int       @default(0) @map("total_votes")
+  timerDuration            Int?      @map("timer_duration")
+  activatedAt              DateTime? @map("activated_at")
+  expiresAt                DateTime? @map("expires_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  deletedAt                DateTime? @map("deleted_at")
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([eventId])
+  @@index([eventId, isActive])
+  @@index([deletedAt])
+  @@map("polls")
+}
+
+model PollOption {
+  id         String   @id @default(cuid())
+  pollId     String   @map("poll_id")
+  optionText String   @map("option_text")
+  votesCount Int      @default(0) @map("votes_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id                    String   @id @default(cuid())
+  pollId                String   @map("poll_id")
+  pollOptionId          String   @map("poll_option_id")
+  participantIdentifier String   @map("participant_identifier")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [pollOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, participantIdentifier])
+  @@index([pollId])
+  @@index([pollOptionId])
+  @@map("poll_votes")
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  eventId   String   @map("event_id")
+  name      String
+  whatsapp  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([eventId, createdAt(sort: Desc)])
+  @@map("waitlist")
+}

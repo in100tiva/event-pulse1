@@ -1,0 +1,30 @@
+{
+  "name": "eventpulse-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "prisma generate --schema=../prisma/schema.prisma",
+    "db:push": "prisma db push --schema=../prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=../prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=../prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@clerk/backend": "^1.0.0",
+    "@hono/node-server": "^1.0.0",
+    "@prisma/client": "^7.2.0",
+    "dotenv": "^16.0.0",
+    "hono": "^4.0.0",
+    "ws": "^8.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.0.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
 import { showToast } from '../src/utils/toast';
 import EventStats from './EventStats';
+import {
+  useEventByShareCode,
+  useAttendanceByEvent,
+  useAttendanceStats,
+  useSuggestionsByEvent,
+  usePollsByEvent,
+  useCheckIn,
+  useUpdateEventStatus,
+  useUpdateSuggestionStatus,
+  useTogglePollActive,
+} from '../src/lib/hooks';
+import type { AttendanceConfirmation, Suggestion, Poll } from '../src/lib/types';
 
 type TabType = 'confirmations' | 'suggestions' | 'polls' | 'statistics';
 
@@ -30,49 +39,20 @@ const EventManagement: React.FC = () => {
     }
   }, [showEmailFilterMenu]);
 
-  // Buscar dados reais do Convex
-  const event = useQuery(
-    api.events.getByShareCode,
-    shareCode ? { shareLinkCode: shareCode } : 'skip'
-  );
+  // React Query hooks
+  const { data: event, isLoading: isLoadingEvent } = useEventByShareCode(shareCode);
+  const eventId = event?.id || event?._id;
   
-  const attendanceList = useQuery(
-    api.attendance.getByEvent,
-    event ? { eventId: event._id } : 'skip'
-  );
-  
-  const effectiveAttendance = useQuery(
-    api.attendance.getEffectiveAttendance,
-    event ? { eventId: event._id } : 'skip'
-  );
-  
-  const stats = useQuery(
-    api.attendance.getStats,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  const checkInStatus = useQuery(
-    api.attendance.getCheckInStatus,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  const suggestions = useQuery(
-    api.suggestions.getByEvent,
-    event ? { eventId: event._id } : 'skip'
-  );
-
-  const polls = useQuery(
-    api.polls.getByEvent,
-    event ? { eventId: event._id } : 'skip'
-  );
+  const { data: attendanceList } = useAttendanceByEvent(eventId);
+  const { data: stats } = useAttendanceStats(eventId);
+  const { data: suggestions } = useSuggestionsByEvent(eventId);
+  const { data: polls } = usePollsByEvent(eventId);
 
   // Mutations
-  const checkInMutation = useMutation(api.attendance.checkIn);
-  const updateStatusMutation = useMutation(api.events.updateStatus);
-  const updateSuggestionStatus = useMutation(api.suggestions.updateStatus);
-  const markSuggestionAnswered = useMutation(api.suggestions.markAsAnswered);
-  const togglePollActive = useMutation(api.polls.toggleActive);
-  const manualRelease = useMutation(api.attendance.manualReleaseNoShowSlots);
+  const checkInMutation = useCheckIn();
+  const updateStatusMutation = useUpdateEventStatus();
+  const updateSuggestionStatusMutation = useUpdateSuggestionStatus();
+  const togglePollActiveMutation = useTogglePollActive();
 
   // Copiar link do evento
   const handleCopyLink = async () => {
@@ -91,11 +71,12 @@ const EventManagement: React.FC = () => {
   };
 
   // Check-in de participante
-  const handleCheckIn = async (confirmationId: Id<"attendanceConfirmations">, currentCheckedIn: boolean) => {
+  const handleCheckIn = async (confirmationId: string, currentCheckedIn: boolean) => {
     try {
-      await checkInMutation({
+      await checkInMutation.mutateAsync({
         id: confirmationId,
         checkedIn: !currentCheckedIn,
+        eventId,
       });
     } catch (error) {
       console.error('Erro ao fazer check-in:', error);
@@ -105,32 +86,20 @@ const EventManagement: React.FC = () => {
 
   // Atualizar status do evento
   const handleUpdateStatus = async (status: 'rascunho' | 'publicado' | 'ao_vivo' | 'encerrado') => {
-    if (!event) return;
+    if (!eventId) return;
     
     try {
-      await updateStatusMutation({
-        id: event._id,
+      await updateStatusMutation.mutateAsync({
+        id: eventId,
         status,
       });
       
-      // Se finalizou o evento, voltar para o dashboard
       if (status === 'encerrado') {
         navigate('/dashboard');
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       showToast.error('Não foi possível atualizar status');
-    }
-  };
-
-  // Liberar vagas manualmente
-  const handleManualRelease = async () => {
-    if (!event) return;
-    try {
-      const result = await manualRelease({ eventId: event._id });
-      showToast.success(`${result.releasedCount} vagas liberadas`);
-    } catch (error) {
-      showToast.error('Erro ao liberar vagas');
     }
   };
 
@@ -170,18 +139,17 @@ const EventManagement: React.FC = () => {
 
   // Enviar email para confirmados com filtro
   const handleSendEmail = (filter: 'todos' | 'presentes' | 'ausentes' = 'todos') => {
-    if (!effectiveAttendance || effectiveAttendance.length === 0) {
+    if (!attendanceList || attendanceList.length === 0) {
       showToast.warning('Não há participantes confirmados');
       return;
     }
 
-    let filteredParticipants = effectiveAttendance.filter(a => a.status === 'vou');
+    let filteredParticipants = attendanceList.filter(a => a.status === 'vou');
 
-    // Aplicar filtro de presença efetiva
     if (filter === 'presentes') {
-      filteredParticipants = filteredParticipants.filter(a => a.effectivelyAttended);
+      filteredParticipants = filteredParticipants.filter(a => a.checkedIn);
     } else if (filter === 'ausentes') {
-      filteredParticipants = filteredParticipants.filter(a => !a.effectivelyAttended);
+      filteredParticipants = filteredParticipants.filter(a => !a.checkedIn);
     }
 
     const emails = filteredParticipants
@@ -195,7 +163,6 @@ const EventManagement: React.FC = () => {
       return;
     }
 
-    // Abrir Gmail em nova aba com os emails pré-preenchidos
     const filterSubject = filter === 'presentes' 
       ? '✅ Parabéns pela participação!' 
       : filter === 'ausentes' 
@@ -211,7 +178,7 @@ const EventManagement: React.FC = () => {
   };
 
   // Loading state
-  if (!event) {
+  if (isLoadingEvent || !event) {
     return (
       <div className="bg-background-dark min-h-screen flex items-center justify-center">
         <div className="text-white text-lg">Carregando evento...</div>
@@ -280,7 +247,7 @@ const EventManagement: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button 
-                    onClick={() => navigate(`/edit-event/${event._id}`)}
+                    onClick={() => navigate(`/edit-event/${eventId}`)}
                     className="flex flex-1 sm:flex-initial min-w-0 sm:min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 sm:h-10 px-3 sm:px-4 bg-background-dark border border-border-dark text-white text-sm font-bold leading-normal tracking-[0.015em] gap-2 hover:bg-gray-800 transition-colors"
                   >
                     <span className="material-symbols-outlined text-base sm:text-lg">edit</span>
@@ -345,60 +312,19 @@ const EventManagement: React.FC = () => {
               {/* Tab Content: Confirmações */}
               {activeTab === 'confirmations' && (
                 <>
-                  {/* Card de Check-in */}
-                  {event?.requireCheckIn && checkInStatus?.enabled && (
-                    <div className="mx-4 mt-4 mb-6 p-4 bg-surface-dark border border-border-dark rounded-lg">
-                      <h3 className="text-lg font-bold text-white mb-3">Status do Check-in</h3>
-                      
-                      {!checkInStatus.isOpen && !checkInStatus.hasPassed && (
-                        <p className="text-yellow-400">
-                          Check-in abre em: {formatTime(checkInStatus.opensAt)}
-                        </p>
-                      )}
-                      
-                      {checkInStatus.isOpen && (
-                        <div>
-                          <p className="text-green-400 font-bold">CHECK-IN ABERTO</p>
-                          <p className="text-gray-400 text-sm">Fecha em: {formatTime(checkInStatus.closesAt)}</p>
-                        </div>
-                      )}
-                      
-                      {checkInStatus.hasPassed && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-red-400">Check-in encerrado</p>
-                          <button
-                            onClick={handleManualRelease}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-                          >
-                            Liberar Vagas de No-Shows
-                          </button>
-                        </div>
-                      )}
-                      
-                      <div className="mt-3 flex gap-4 text-sm">
-                        <span className="text-gray-300">
-                          Check-in: {stats?.checkedIn || 0} / {stats?.confirmed || 0}
-                        </span>
-                        <span className="text-gray-300">
-                          No-shows: {(stats?.confirmed || 0) - (stats?.checkedIn || 0)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Stats Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-2 sm:p-4">
                     <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark">
                       <p className="text-white text-sm sm:text-base font-medium leading-normal">Confirmados</p>
-                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.confirmed || 0}</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.vou || 0}</p>
                     </div>
                     <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark">
                       <p className="text-white text-sm sm:text-base font-medium leading-normal">Talvez</p>
-                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.maybe || 0}</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.talvez || 0}</p>
                     </div>
                     <div className="flex min-w-0 flex-col gap-2 rounded-xl p-4 sm:p-6 border border-border-dark bg-surface-dark sm:col-span-2 lg:col-span-1">
                       <p className="text-white text-sm sm:text-base font-medium leading-normal">Recusados</p>
-                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.declined || 0}</p>
+                      <p className="text-white tracking-light text-2xl sm:text-3xl font-bold leading-tight">{stats?.nao_vou || 0}</p>
                     </div>
                   </div>
 
@@ -414,7 +340,6 @@ const EventManagement: React.FC = () => {
                         <span className="material-symbols-outlined text-lg">{showEmailFilterMenu ? 'expand_less' : 'expand_more'}</span>
                       </button>
                       
-                      {/* Dropdown Menu */}
                       {showEmailFilterMenu && (
                         <div className="absolute right-0 mt-2 w-64 rounded-lg bg-surface-dark border border-border-dark shadow-xl z-10">
                           <div className="p-2">
@@ -436,7 +361,7 @@ const EventManagement: React.FC = () => {
                               <span className="material-symbols-outlined text-green-400">check_circle</span>
                               <div className="flex-1">
                                 <p className="text-sm font-semibold">Apenas Presentes</p>
-                                <p className="text-xs text-gray-400">Participação ≥ 70%</p>
+                                <p className="text-xs text-gray-400">Com check-in</p>
                               </div>
                             </button>
                             
@@ -447,7 +372,7 @@ const EventManagement: React.FC = () => {
                               <span className="material-symbols-outlined text-red-400">cancel</span>
                               <div className="flex-1">
                                 <p className="text-sm font-semibold">Apenas Ausentes</p>
-                                <p className="text-xs text-gray-400">Participação &lt; 70%</p>
+                                <p className="text-xs text-gray-400">Sem check-in</p>
                               </div>
                             </button>
                           </div>
@@ -476,15 +401,14 @@ const EventManagement: React.FC = () => {
                                 <th className="px-3 sm:px-4 py-3 text-left text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Email</th>
                                 <th className="px-3 sm:px-4 py-3 text-left text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Status</th>
                                 <th className="px-3 sm:px-4 py-3 text-center text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Check-in</th>
-                                <th className="px-3 sm:px-4 py-3 text-center text-text-secondary-dark text-xs sm:text-sm font-medium leading-normal whitespace-nowrap">Presença Efetiva</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border-dark bg-surface-dark">
-                              {effectiveAttendance && effectiveAttendance.length > 0 ? (
-                                effectiveAttendance
-                                  .filter(att => att.status === 'vou') // Mostrar apenas confirmados
+                              {attendanceList && attendanceList.length > 0 ? (
+                                attendanceList
+                                  .filter(att => att.status === 'vou')
                                   .map((attendance) => (
-                                  <tr key={attendance._id} className="hover:bg-gray-800/50 transition-colors">
+                                  <tr key={attendance.id || attendance._id} className="hover:bg-gray-800/50 transition-colors">
                                     <td className="px-3 sm:px-4 py-2 sm:py-3 text-white text-xs sm:text-sm font-normal leading-normal">
                                       <div className="max-w-[120px] sm:max-w-none truncate">{attendance.name}</div>
                                     </td>
@@ -500,37 +424,15 @@ const EventManagement: React.FC = () => {
                                       <input 
                                         type="checkbox" 
                                         checked={attendance.checkedIn}
-                                        onChange={() => handleCheckIn(attendance._id, attendance.checkedIn)}
+                                        onChange={() => handleCheckIn(attendance.id || attendance._id || '', attendance.checkedIn)}
                                         className="h-4 w-4 sm:h-5 sm:w-5 rounded border-[#4a6353] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary focus:ring-0 focus:ring-offset-0 focus:border-primary cursor-pointer" 
                                       />
-                                    </td>
-                                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
-                                      {attendance.totalPolls > 0 ? (
-                                        <div className="flex flex-col items-center gap-1">
-                                          {attendance.effectivelyAttended ? (
-                                            <span className="inline-flex items-center gap-1 text-green-400 font-semibold text-xs sm:text-sm whitespace-nowrap">
-                                              <span className="material-symbols-outlined text-base sm:text-lg">check_circle</span>
-                                              <span className="hidden sm:inline">Presente</span>
-                                            </span>
-                                          ) : (
-                                            <span className="inline-flex items-center gap-1 text-red-400 font-semibold text-xs sm:text-sm whitespace-nowrap">
-                                              <span className="material-symbols-outlined text-base sm:text-lg">cancel</span>
-                                              <span className="hidden sm:inline">Ausente</span>
-                                            </span>
-                                          )}
-                                          <span className="text-xs text-gray-400 whitespace-nowrap">
-                                            {attendance.pollsParticipated}/{attendance.totalPolls} ({attendance.pollParticipationRate}%)
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-xs text-gray-500">Sem enquetes</span>
-                                      )}
                                     </td>
                                   </tr>
                                 ))
                               ) : (
                                 <tr>
-                                  <td colSpan={5} className="px-3 sm:px-4 py-8 text-center text-text-secondary-dark text-sm">
+                                  <td colSpan={4} className="px-3 sm:px-4 py-8 text-center text-text-secondary-dark text-sm">
                                     Nenhuma confirmação ainda
                                   </td>
                                 </tr>
@@ -550,7 +452,7 @@ const EventManagement: React.FC = () => {
                   {suggestions && suggestions.length > 0 ? (
                     <div className="space-y-3">
                       {suggestions.map((suggestion) => (
-                        <div key={suggestion._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
+                        <div key={suggestion.id || suggestion._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
                               <p className="text-white text-base">{suggestion.content}</p>
@@ -583,25 +485,27 @@ const EventManagement: React.FC = () => {
                             {suggestion.status === 'pendente' && (
                               <>
                                 <button
-                                  onClick={() => updateSuggestionStatus({ id: suggestion._id, status: 'aprovada' })}
+                                  onClick={() => updateSuggestionStatusMutation.mutate({ 
+                                    id: suggestion.id || suggestion._id || '', 
+                                    status: 'aprovada',
+                                    eventId
+                                  })}
                                   className="text-xs px-3 py-1 bg-green-900/50 hover:bg-green-800/50 text-green-300 rounded transition-colors"
                                 >
                                   Aprovar
                                 </button>
                                 <button
-                                  onClick={() => updateSuggestionStatus({ id: suggestion._id, status: 'rejeitada' })}
+                                  onClick={() => updateSuggestionStatusMutation.mutate({ 
+                                    id: suggestion.id || suggestion._id || '', 
+                                    status: 'rejeitada',
+                                    eventId
+                                  })}
                                   className="text-xs px-3 py-1 bg-red-900/50 hover:bg-red-800/50 text-red-300 rounded transition-colors"
                                 >
                                   Rejeitar
                                 </button>
                               </>
                             )}
-                            <button
-                              onClick={() => markSuggestionAnswered({ id: suggestion._id, isAnswered: !suggestion.isAnswered })}
-                              className="text-xs px-3 py-1 bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 rounded transition-colors"
-                            >
-                              {suggestion.isAnswered ? 'Marcar como não respondida' : 'Marcar como respondida'}
-                            </button>
                           </div>
                         </div>
                       ))}
@@ -620,7 +524,7 @@ const EventManagement: React.FC = () => {
                   {polls && polls.length > 0 ? (
                     <div className="space-y-4">
                       {polls.map((poll) => (
-                        <div key={poll._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
+                        <div key={poll.id || poll._id} className="p-4 rounded-lg border border-border-dark bg-surface-dark">
                           <div className="flex justify-between items-start mb-3">
                             <h3 className="text-white text-lg font-bold">{poll.question}</h3>
                             <span className={`text-xs px-2 py-1 rounded-full ${
@@ -631,7 +535,7 @@ const EventManagement: React.FC = () => {
                           </div>
                           <div className="space-y-2 mb-3">
                             {poll.options?.map((option) => (
-                              <div key={option._id} className="flex items-center justify-between text-sm">
+                              <div key={option.id || option._id} className="flex items-center justify-between text-sm">
                                 <span className="text-white">{option.optionText}</span>
                                 <span className="text-primary font-bold">{option.votesCount} votos</span>
                               </div>
@@ -642,7 +546,11 @@ const EventManagement: React.FC = () => {
                               Total de votos: {poll.totalVotes}
                             </p>
                             <button
-                              onClick={() => togglePollActive({ id: poll._id, isActive: !poll.isActive })}
+                              onClick={() => togglePollActiveMutation.mutate({ 
+                                id: poll.id || poll._id || '', 
+                                isActive: !poll.isActive,
+                                eventId
+                              })}
                               className={`text-xs px-3 py-1 rounded transition-colors ${
                                 poll.isActive 
                                   ? 'bg-red-900/50 hover:bg-red-800/50 text-red-300' 
@@ -664,8 +572,8 @@ const EventManagement: React.FC = () => {
               )}
 
               {/* Tab Content: Estatísticas */}
-              {activeTab === 'statistics' && event && (
-                <EventStats eventId={event._id} />
+              {activeTab === 'statistics' && eventId && (
+                <EventStats eventId={eventId} />
               )}
             </div>
           </div>

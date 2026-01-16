@@ -1,10 +1,17 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from 'convex/react';
 import { useUser, useOrganization, useClerk } from '@clerk/clerk-react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
 import { showToast } from '../src/utils/toast';
+import {
+  useUserOrganizations,
+  useEventsByOrganization,
+  useWaitlistByOrganization,
+  useSyncUser,
+  useSyncOrganization,
+  useCreateOrganization,
+  useOrganizationByClerkId,
+} from '../src/lib/hooks';
+import type { Event, Organization, WaitlistEntry } from '../src/lib/types';
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const styles: Record<string, string> = {
@@ -47,72 +54,50 @@ const Dashboard: React.FC = () => {
   const [isCreatingOrg, setIsCreatingOrg] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'publicados' | 'ao_vivo' | 'encerrados' | 'waitlist'>('publicados');
 
-  // Sincronizar usuário com Convex
-  const syncUser = useMutation(api.users.syncUser);
-  const syncOrganization = useMutation(api.users.syncOrganization);
-  const createOrganization = useMutation(api.users.createOrganization);
-
-  // Buscar organizações e eventos
-  const userOrganizations = useQuery(api.users.getUserOrganizations);
+  // React Query hooks
+  const syncUserMutation = useSyncUser();
+  const syncOrgMutation = useSyncOrganization();
+  const createOrgMutation = useCreateOrganization();
   
-  // Buscar organização do Convex pelo clerkId se estivermos em uma organização do Clerk
-  const currentClerkOrg = useQuery(
-    api.users.getOrganizationByClerkId,
-    organization?.id ? { clerkId: organization.id } : "skip"
-  );
+  const { data: userOrganizations, isLoading: isLoadingOrgs } = useUserOrganizations();
   
-  // Usar a organização do Clerk (convertida para Convex ID) ou a primeira organização do usuário
-  const currentOrgId = currentClerkOrg?._id || userOrganizations?.[0]?._id;
+  // Buscar organização do banco pelo clerkId se estivermos em uma organização do Clerk
+  const { data: currentClerkOrg } = useOrganizationByClerkId(organization?.id);
   
-  const events = useQuery(
-    api.events.getByOrganization, 
-    currentOrgId ? { organizationId: currentOrgId } : "skip"
-  );
-
-  // Buscar leads de lista de espera da organização
-  const waitlistLeads = useQuery(
-    api.waitlist.getByOrganization,
-    currentOrgId ? { organizationId: currentOrgId } : "skip"
-  );
+  // Usar a organização do Clerk ou a primeira organização do usuário
+  const currentOrgId = currentClerkOrg?.id || currentClerkOrg?._id || userOrganizations?.[0]?.id || userOrganizations?.[0]?._id;
+  
+  const { data: events, isLoading: isLoadingEvents } = useEventsByOrganization(currentOrgId);
+  const { data: waitlistLeads } = useWaitlistByOrganization(currentOrgId);
 
   // Sincronizar dados do Clerk ao montar
   useEffect(() => {
-    const syncUserData = async () => {
-      if (user && user.primaryEmailAddress?.emailAddress) {
-        try {
-          await syncUser({
-            clerkId: user.id,
-            email: user.primaryEmailAddress.emailAddress,
-            firstName: user.firstName || undefined,
-            lastName: user.lastName || undefined,
-            avatarUrl: user.imageUrl || undefined,
-          });
-        } catch (error) {
+    if (user && user.primaryEmailAddress?.emailAddress) {
+      syncUserMutation.mutate({
+        clerkId: user.id,
+        email: user.primaryEmailAddress.emailAddress,
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        avatarUrl: user.imageUrl || undefined,
+      }, {
+        onError: (error) => {
           console.error('Erro ao sincronizar usuário:', error);
-          // Não mostra toast para não incomodar o usuário, apenas loga
         }
-      }
-    };
-    
-    syncUserData();
+      });
+    }
   }, [user?.id, user?.primaryEmailAddress?.emailAddress]);
 
   useEffect(() => {
-    const syncOrgData = async () => {
-      if (organization) {
-        try {
-          await syncOrganization({
-            clerkId: organization.id,
-            name: organization.name,
-          });
-        } catch (error) {
+    if (organization) {
+      syncOrgMutation.mutate({
+        clerkId: organization.id,
+        name: organization.name,
+      }, {
+        onError: (error) => {
           console.error('Erro ao sincronizar organização:', error);
-          // Não mostra toast para não incomodar o usuário, apenas loga
         }
-      }
-    };
-    
-    syncOrgData();
+      });
+    }
   }, [organization?.id, organization?.name]);
 
   const handleLogout = async () => {
@@ -141,7 +126,7 @@ const Dashboard: React.FC = () => {
 
     setIsCreatingOrg(true);
     try {
-      await createOrganization({
+      await createOrgMutation.mutateAsync({
         name: newOrgName,
         clerkId: `org_${Date.now()}_${user.id}`,
       });
@@ -214,7 +199,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Aviso quando não há organizações */}
-              {userOrganizations !== undefined && userOrganizations.length === 0 && (
+              {!isLoadingOrgs && userOrganizations !== undefined && userOrganizations.length === 0 && (
                 <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg">
                   <div className="flex items-start gap-3">
                     <span className="material-symbols-outlined text-yellow-300 text-2xl">info</span>
@@ -305,7 +290,7 @@ const Dashboard: React.FC = () => {
               {/* Conteúdo das Abas de Eventos */}
               {activeTab !== 'waitlist' && (
                 <>
-                  {events === undefined ? (
+                  {isLoadingEvents ? (
                     <div className="flex justify-center items-center py-20">
                       <div className="text-gray-400">Carregando eventos...</div>
                     </div>
@@ -317,20 +302,20 @@ const Dashboard: React.FC = () => {
                       'encerrados': 'encerrado'
                     };
                     const targetStatus = statusMap[activeTab];
-                    const filteredEvents = events.filter(e => e.status === targetStatus);
+                    const filteredEvents = (events || []).filter(e => e.status === targetStatus);
                     
                     return filteredEvents.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredEvents.map((event) => (
                     <div 
-                      key={event._id}
+                      key={event.id || event._id}
                       onClick={() => navigate(`/manage/${event.shareLinkCode}`)}
                       className="flex flex-col gap-4 p-5 rounded-xl bg-surface-dark border border-border-dark hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer hover:border-primary/50 group"
                     >
                       <div 
                         className="w-full bg-center bg-no-repeat aspect-[16/9] bg-cover rounded-lg overflow-hidden relative" 
                         style={{ 
-                          backgroundImage: `url("${event.imageUrl || `https://picsum.photos/seed/${event._id}/800/450`}")` 
+                          backgroundImage: `url("${event.imageUrl || `https://picsum.photos/seed/${event.id || event._id}/800/450`}")` 
                         }}
                       >
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
@@ -351,15 +336,15 @@ const Dashboard: React.FC = () => {
                         <div className="flex items-center justify-between text-sm text-gray-300">
                           <div className="flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-base text-primary">groups</span>
-                            <span>{event.rsvps || 0}</span>
+                            <span>{event.participantsCount || 0}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-base text-primary">lightbulb</span>
-                            <span>{event.suggestions || 0}</span>
+                            <span>{event.suggestionsCount || 0}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="material-symbols-outlined text-base text-primary">poll</span>
-                            <span>{event.polls || 0}</span>
+                            <span>0</span>
                           </div>
                         </div>
                       </div>
@@ -431,7 +416,7 @@ const Dashboard: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-border-dark">
                           {waitlistLeads.map((lead) => (
-                            <tr key={lead._id} className="hover:bg-background-dark/30 transition-colors">
+                            <tr key={lead.id || lead._id} className="hover:bg-background-dark/30 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -467,24 +452,15 @@ const Dashboard: React.FC = () => {
                                 </div>
                               </td>
                               <td className="px-6 py-4">
-                                <div className="text-sm text-white">{lead.eventTitle}</div>
-                                <div className="text-xs text-gray-400">
-                                  {new Date(lead.eventStartDateTime).toLocaleDateString('pt-BR')}
-                                </div>
+                                <div className="text-sm text-white">{lead.eventTitle || 'Evento'}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-300">
-                                  {new Date(lead.createdAt).toLocaleDateString('pt-BR', {
+                                  {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('pt-BR', {
                                     day: '2-digit',
                                     month: 'short',
                                     year: 'numeric',
-                                  })}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  {new Date(lead.createdAt).toLocaleTimeString('pt-BR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
+                                  }) : '-'}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
